@@ -237,8 +237,12 @@
         <p class="vin-hint">Found on the dash (driver's side, visible through the windshield) or the driver's door jamb.</p>
         <div class="vin-result" id="vinResult"></div>
       </div>
+      <div>
+        <label for="requested_appointment">Requested Appointment Date/Time</label>
+        <input id="requested_appointment" name="requested_appointment" type="datetime-local" required />
+      </div>
       <button type="submit" id="submitBtn">Submit</button>
-      <p class="fineprint">One redemption per company. A service advisor will call to schedule.</p>
+      <p class="fineprint">One redemption per vehicle, per company. A service advisor will call to verify your requested appointment date/time.</p>
     </form>
 
     <div class="success" id="successBox">
@@ -362,6 +366,13 @@
       return;
     }
 
+    const requestedAppointment = form.requested_appointment.value;
+    if (!requestedAppointment) {
+      errorBox.textContent = "Please choose a requested appointment date and time.";
+      errorBox.style.display = "block";
+      return;
+    }
+
     submitBtn.disabled = true;
     submitBtn.textContent = "Submitting…";
 
@@ -372,6 +383,7 @@
       email: form.email.value.trim(),
       vin: vinInput.value,
       vehicle_info: vehicleDescription || null,
+      requested_appointment_date: new Date(requestedAppointment).toISOString(),
     };
 
     try {
