@@ -669,7 +669,6 @@
           <span class="email">Email</span>
           <span class="detail">Vehicle</span>
           <span class="vin">VIN</span>
-          <span class="detail">Details</span>
         </div>
       `;
       for (const lead of items) body.appendChild(renderCard(lead));
@@ -678,24 +677,6 @@
 
   function leadVehicleText(lead) {
     return lead.vehicle_info || "—";
-  }
-
-  function leadDetailText(lead) {
-    const hasAttempts = lead.contact_attempt_count > 0;
-    const attemptSummary = hasAttempts
-      ? `${lead.contact_attempt_count} attempt${lead.contact_attempt_count === 1 ? "" : "s"} · Last: ${CONTACT_OUTCOME_LABELS[lead.last_contact_outcome] || lead.last_contact_outcome}`
-      : "";
-
-    if (lead.status === "ready_for_advisor" && hasAttempts) return attemptSummary;
-
-    if (lead.status === "follow_up_assigned" && lead.followup_assignee_name) {
-      return hasAttempts ? `Follow-up: ${lead.followup_assignee_name} · ${attemptSummary}` : `Follow-up: ${lead.followup_assignee_name}`;
-    }
-
-    if (lead.followup_assignee_name) return `Follow-up: ${lead.followup_assignee_name}`;
-    if (lead.appointment_date) return `Scheduled: ${formatDT(lead.appointment_date)}`;
-    if (lead.requested_appointment_date) return `Requested: ${formatDT(lead.requested_appointment_date)}`;
-    return "—";
   }
 
   function formatDT(iso) {
@@ -728,11 +709,10 @@
       <span class="col ticket" title="#${ticketNo}">#${ticketNo}</span>
       <span class="col company" title="${escapeHtml(lead.company_name)}">${escapeHtml(lead.company_name)}</span>
       <span class="col contact-name" title="${escapeHtml(lead.contact_name)}">${escapeHtml(lead.contact_name)}</span>
-      <span class="col phone" title="${escapeHtml(lead.phone)}"><a href="tel:${escapeHtml(lead.phone)}">${escapeHtml(lead.phone)}</a></span>
+      <span class="col phone" title="${escapeHtml(lead.phone)}">${escapeHtml(lead.phone)}</span>
       <span class="col email" title="${escapeHtml(lead.email)}">${escapeHtml(lead.email)}</span>
       <span class="col detail" title="${escapeHtml(leadVehicleText(lead))}">${escapeHtml(leadVehicleText(lead))}</span>
       <span class="col vin" title="${escapeHtml(lead.vin || "")}">${escapeHtml(lead.vin || "—")}</span>
-      <span class="col detail" title="${escapeHtml(leadDetailText(lead))}">${escapeHtml(leadDetailText(lead))}</span>
       <div class="row-actions">${roHtml}${contactBtn}${skipToStockBtn}${btn}</div>
     `;
 
