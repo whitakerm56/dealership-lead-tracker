@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Manage Users — Commercial Lead Board</title>
+<title>Manage Users — Commercial Lead Tracker</title>
 <meta name="robots" content="noindex" />
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -17,7 +17,8 @@
     --card: #ffffff;
     --line: #ccd1d6;
     --muted: #666d75;
-    --orange: #ff6a1a;
+    --red: #ff0000;
+    --red-dark: #cc0000;
 
     --c-sales_manager: #3568d4;
     --c-service_advisor: #b8860b;
@@ -39,7 +40,17 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    border-bottom: 3px solid var(--orange);
+    border-bottom: 3px solid var(--red);
+  }
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+  .brand .header-logo {
+    height: 32px;
+    width: auto;
+    display: block;
   }
   header h1 {
     font-family: 'Oswald', sans-serif;
@@ -57,7 +68,7 @@
     padding: 6px 12px;
     border-radius: 3px;
   }
-  header a.back:hover { border-color: var(--orange); }
+  header a.back:hover { border-color: var(--red); }
 
   #content {
     max-width: 780px;
@@ -146,7 +157,7 @@
     font-weight: 600;
     cursor: pointer;
   }
-  .add-row button:hover { border-color: var(--orange); color: var(--orange); }
+  .add-row button:hover { border-color: var(--red); color: var(--red); }
 
   .overlay {
     display: none;
@@ -200,7 +211,7 @@
     cursor: pointer;
   }
   .modal .cancel { background: #eceef0; color: var(--ink); }
-  .modal .confirm { background: var(--orange); color: #fff; }
+  .modal .confirm { background: var(--red); color: #fff; }
 
   #blocked {
     display: none;
@@ -222,7 +233,10 @@
 
 <div id="app" style="display:none">
   <header>
-    <h1>Manage Users</h1>
+    <div class="brand">
+      <img src="modern-logo.png" alt="Modern" class="header-logo" />
+      <h1>Manage Users</h1>
+    </div>
     <a class="back" href="dashboard.html">&larr; Back to Board</a>
   </header>
 
