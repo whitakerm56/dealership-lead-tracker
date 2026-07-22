@@ -526,6 +526,7 @@
     follow_up_complete:    { label: "Closed",             color: "var(--c-done)" },
   };
   const ORDER = Object.keys(STATUS_META);
+  const ACTIVE_ORDER = ORDER.filter((s) => s !== "follow_up_complete");
   const NEXT = {
     new: "ready_for_advisor",
     ready_for_advisor: "appointment_scheduled",
@@ -610,7 +611,8 @@
 
     const allBtn = document.createElement("button");
     allBtn.className = "stage-link" + (activeStatus === "all" ? " active" : "");
-    allBtn.innerHTML = `<span class="dot" style="background:#8a9097"></span><span class="label">All Leads</span><span class="badge">${leads.length}</span>`;
+    const activeCount = leads.filter((l) => l.status !== "follow_up_complete").length;
+    allBtn.innerHTML = `<span class="dot" style="background:#8a9097"></span><span class="label">All Leads</span><span class="badge">${activeCount}</span>`;
     allBtn.addEventListener("click", () => { activeStatus = "all"; renderSidebar(); renderContent(); });
     sidebar.appendChild(allBtn);
 
@@ -632,7 +634,7 @@
   function renderContent() {
     const content = document.getElementById("content");
     content.innerHTML = "";
-    const statuses = activeStatus === "all" ? ORDER : [activeStatus];
+    const statuses = activeStatus === "all" ? ACTIVE_ORDER : [activeStatus];
 
     for (const status of statuses) {
       const meta = STATUS_META[status];
