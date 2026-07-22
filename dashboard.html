@@ -554,6 +554,10 @@
   let leads = [];
   let users = [];
   let activeStatus = "all";
+  const urlStatus = new URLSearchParams(window.location.search).get("status");
+  if (urlStatus && ORDER.includes(urlStatus)) {
+    activeStatus = urlStatus;
+  }
   let pollTimer = null;
 
   async function loadAll() {
