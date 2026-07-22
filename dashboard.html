@@ -226,11 +226,15 @@
     font-family: 'Oswald', sans-serif;
     font-size: 14px;
   }
-  .lead-row .contact, .row-header .contact {
-    flex: 0 0 150px;
+  .lead-row .contact-name, .row-header .contact-name {
+    flex: 0 0 130px;
   }
-  .lead-row .contact { font-size: 12.5px; color: #4b5157; }
-  .lead-row .contact a { color: inherit; }
+  .lead-row .contact-name { font-size: 12.5px; color: #4b5157; }
+  .lead-row .phone, .row-header .phone {
+    flex: 0 0 120px;
+  }
+  .lead-row .phone { font-size: 12.5px; color: #4b5157; }
+  .lead-row .phone a { color: inherit; }
   .lead-row .email, .row-header .email {
     flex: 0 0 170px;
     font-size: 12px;
@@ -248,7 +252,7 @@
     font-size: 11px;
     color: var(--muted);
   }
-  .row-header .ticket, .row-header .company, .row-header .contact,
+  .row-header .ticket, .row-header .company, .row-header .contact-name, .row-header .phone,
   .row-header .email, .row-header .detail, .row-header .vin {
     font-family: 'JetBrains Mono', monospace;
     font-size: 10px;
@@ -660,7 +664,8 @@
         <div class="row-header">
           <span class="ticket">#</span>
           <span class="company">Company</span>
-          <span class="contact">Contact</span>
+          <span class="contact-name">Contact Name</span>
+          <span class="phone">Phone</span>
           <span class="email">Email</span>
           <span class="detail">Vehicle</span>
           <span class="vin">VIN</span>
@@ -718,7 +723,8 @@
     el.innerHTML = `
       <span class="col ticket" title="#${ticketNo}">#${ticketNo}</span>
       <span class="col company" title="${escapeHtml(lead.company_name)}">${escapeHtml(lead.company_name)}</span>
-      <span class="col contact" title="${escapeHtml(lead.contact_name)} ${escapeHtml(lead.phone)}">${escapeHtml(lead.contact_name)} &middot; <a href="tel:${escapeHtml(lead.phone)}">${escapeHtml(lead.phone)}</a></span>
+      <span class="col contact-name" title="${escapeHtml(lead.contact_name)}">${escapeHtml(lead.contact_name)}</span>
+      <span class="col phone" title="${escapeHtml(lead.phone)}"><a href="tel:${escapeHtml(lead.phone)}">${escapeHtml(lead.phone)}</a></span>
       <span class="col email" title="${escapeHtml(lead.email)}">${escapeHtml(lead.email)}</span>
       <span class="col detail" title="${escapeHtml(leadVehicleText(lead))}">${escapeHtml(leadVehicleText(lead))}</span>
       <span class="col vin" title="${escapeHtml(lead.vin || "")}">${escapeHtml(lead.vin || "—")}</span>
