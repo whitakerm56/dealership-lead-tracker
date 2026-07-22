@@ -698,7 +698,7 @@
       : "";
 
     const contactBtn = lead.status === "ready_for_advisor"
-      ? `<button class="log-contact" data-id="${lead.id}">Log Contact</button>`
+      ? `<button class="log-contact" data-id="${lead.id}">Contact Attempt</button>`
       : "";
 
     el.innerHTML = `
@@ -857,8 +857,6 @@
         <div class="field"><label>RO Value</label><div class="value">${lead.ro_value != null ? money(Number(lead.ro_value)) : "—"}</div></div>
         <div class="field"><label>Follow-Up Assigned To</label><div class="value">${lead.followup_assignee_name ? `${escapeHtml(lead.followup_assignee_name)} (${escapeHtml(lead.followup_assignee_email || "")})` : "—"}</div></div>
       </div>
-      <div class="log-heading">Contact Attempts</div>
-      <div class="log-list" id="attemptsList"><div class="log-empty">Loading…</div></div>
       <div class="log-heading">Transaction Log</div>
       <div class="log-list" id="logList"><div class="log-empty">Loading…</div></div>
       <div class="row">
@@ -875,58 +873,55 @@
       ]);
       const history = historyRes.ok ? await historyRes.json() : [];
       const attempts = attemptsRes.ok ? await attemptsRes.json() : [];
-      renderLog(history, lead);
-      renderAttempts(attempts);
+      renderLog(history, attempts, lead);
     } catch (err) {
       document.getElementById("logList").innerHTML = `<div class="log-empty">Couldn't load the log.</div>`;
-      document.getElementById("attemptsList").innerHTML = `<div class="log-empty">Couldn't load contact attempts.</div>`;
     }
   }
 
-  function renderAttempts(attempts) {
-    const list = document.getElementById("attemptsList");
-    if (!list) return; // modal was closed before the fetch finished
-    if (attempts.length === 0) {
-      list.innerHTML = `<div class="log-empty">No contact attempts logged yet.</div>`;
-      return;
-    }
-    list.innerHTML = "";
-    for (const attempt of attempts) {
-      const label = CONTACT_OUTCOME_LABELS[attempt.outcome] || attempt.outcome;
-      const el = document.createElement("div");
-      el.className = "log-entry";
-      el.innerHTML = `
-        <span class="dot" style="background:var(--c-ready)"></span>
-        <div>
-          <div class="log-title">${escapeHtml(label)}</div>
-          <div class="log-time">${formatDT(attempt.attempted_at)}${attempt.attempted_by ? ` &middot; ${escapeHtml(attempt.attempted_by)}` : ""}</div>
-          ${attempt.notes ? `<div class="log-detail">${escapeHtml(attempt.notes)}</div>` : ""}
-        </div>
-      `;
-      list.appendChild(el);
-    }
-  }
-
-  function renderLog(history, lead) {
+  function renderLog(history, attempts, lead) {
     const list = document.getElementById("logList");
     if (!list) return; // modal was closed before the fetch finished
-    if (history.length === 0) {
+
+    const events = [];
+    for (const entry of history) {
+      const meta = STATUS_META[entry.status];
+      if (!meta) continue;
+      events.push({
+        time: entry.entered_at,
+        color: meta.color,
+        title: meta.label,
+        detail: logEntryDetail(entry.status, lead),
+      });
+    }
+    for (const attempt of attempts) {
+      const label = CONTACT_OUTCOME_LABELS[attempt.outcome] || attempt.outcome;
+      const detailParts = [];
+      if (attempt.attempted_by) detailParts.push(attempt.attempted_by);
+      if (attempt.notes) detailParts.push(attempt.notes);
+      events.push({
+        time: attempt.attempted_at,
+        color: "var(--c-ready)",
+        title: `Contact Attempt: ${label}`,
+        detail: detailParts.join(" · "),
+      });
+    }
+    events.sort((a, b) => new Date(a.time) - new Date(b.time));
+
+    if (events.length === 0) {
       list.innerHTML = `<div class="log-empty">No history yet.</div>`;
       return;
     }
     list.innerHTML = "";
-    for (const entry of history) {
-      const meta = STATUS_META[entry.status];
-      if (!meta) continue;
-      const detail = logEntryDetail(entry.status, lead);
+    for (const event of events) {
       const el = document.createElement("div");
       el.className = "log-entry";
       el.innerHTML = `
-        <span class="dot" style="background:${meta.color}"></span>
+        <span class="dot" style="background:${event.color}"></span>
         <div>
-          <div class="log-title">${meta.label}</div>
-          <div class="log-time">${formatDT(entry.entered_at)}</div>
-          ${detail ? `<div class="log-detail">${escapeHtml(detail)}</div>` : ""}
+          <div class="log-title">${escapeHtml(event.title)}</div>
+          <div class="log-time">${formatDT(event.time)}</div>
+          ${event.detail ? `<div class="log-detail">${escapeHtml(event.detail)}</div>` : ""}
         </div>
       `;
       list.appendChild(el);
