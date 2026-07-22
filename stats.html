@@ -271,7 +271,7 @@
     <div class="section">
       <div class="section-head">
         <h2>Average Time in Stage</h2>
-        <p>Sorted slowest first, so bottlenecks show up at the top</p>
+        <p>Shown in pipeline order, New Leads through Follow-Up</p>
       </div>
       <div id="durationList"></div>
     </div>
@@ -362,14 +362,8 @@
       };
     });
 
-    // Slowest stages first, so the bottleneck is the first thing you see.
-    // Stages with no data yet sort to the bottom rather than the top.
-    rows.sort((a, b) => {
-      if (a.avgHours === null && b.avgHours === null) return 0;
-      if (a.avgHours === null) return 1;
-      if (b.avgHours === null) return -1;
-      return b.avgHours - a.avgHours;
-    });
+    // Rows stay in pipeline order (New Leads -> ... -> Follow-Up), since
+    // `rows` was built from ORDER above.
 
     const list = document.getElementById("durationList");
     list.innerHTML = "";
