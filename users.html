@@ -1,0 +1,401 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Manage Users — Commercial Lead Board</title>
+<meta name="robots" content="noindex" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ink: #1a1d21;
+    --chrome: #21252b;
+    --chrome-line: #34393f;
+    --paper: #e9ebee;
+    --card: #ffffff;
+    --line: #ccd1d6;
+    --muted: #666d75;
+    --orange: #ff6a1a;
+
+    --c-sales_manager: #3568d4;
+    --c-service_advisor: #b8860b;
+    --c-parts: #0f8b8d;
+    --c-salesperson: #c2447a;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: 'Inter', sans-serif;
+    min-height: 100vh;
+  }
+  header {
+    background: var(--chrome);
+    color: #fff;
+    padding: 16px 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 3px solid var(--orange);
+  }
+  header h1 {
+    font-family: 'Oswald', sans-serif;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    font-size: 19px;
+    margin: 0;
+  }
+  header a.back {
+    color: #fff;
+    text-decoration: none;
+    border: 1px solid var(--chrome-line);
+    font-family: 'Inter', sans-serif;
+    font-size: 12.5px;
+    padding: 6px 12px;
+    border-radius: 3px;
+  }
+  header a.back:hover { border-color: var(--orange); }
+
+  #content {
+    max-width: 780px;
+    margin: 0 auto;
+    padding: 24px;
+    display: grid;
+    gap: 18px;
+  }
+
+  .section {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+  .section-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 11px 16px;
+    color: #fff;
+    font-family: 'Oswald', sans-serif;
+    text-transform: uppercase;
+    font-size: 13px;
+    letter-spacing: 0.03em;
+  }
+  .section-head .sub {
+    font-family: 'Inter', sans-serif;
+    text-transform: none;
+    font-size: 11.5px;
+    font-weight: 400;
+    color: rgba(255,255,255,0.8);
+    letter-spacing: 0;
+  }
+
+  .member-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 11px 16px;
+    border-bottom: 1px solid #eee;
+  }
+  .member-row:last-of-type { border-bottom: none; }
+  .member-row .name {
+    font-weight: 600;
+    font-size: 13.5px;
+    min-width: 140px;
+  }
+  .member-row .email {
+    color: var(--muted);
+    font-size: 13px;
+    flex: 1;
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .member-row .icon-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: var(--muted);
+    font-size: 13px;
+    padding: 4px 6px;
+    border-radius: 3px;
+  }
+  .member-row .icon-btn:hover { background: #f1f1f1; color: var(--ink); }
+  .member-row .icon-btn.danger:hover { color: #c0392b; }
+
+  .empty-row {
+    padding: 14px 16px;
+    color: #9aa0a6;
+    font-size: 12.5px;
+    font-style: italic;
+  }
+
+  .add-row {
+    padding: 10px 16px;
+  }
+  .add-row button {
+    width: 100%;
+    padding: 9px;
+    border: 1px dashed var(--line);
+    background: transparent;
+    color: var(--muted);
+    border-radius: 3px;
+    font-family: 'Inter', sans-serif;
+    font-size: 12.5px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .add-row button:hover { border-color: var(--orange); color: var(--orange); }
+
+  .overlay {
+    display: none;
+    position: fixed; inset: 0;
+    background: rgba(26,29,33,0.55);
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+    z-index: 10;
+  }
+  .modal {
+    background: #fff;
+    border-radius: 5px;
+    width: 100%;
+    max-width: 380px;
+    padding: 22px 22px 18px;
+  }
+  .modal h2 {
+    font-family: 'Oswald', sans-serif;
+    text-transform: uppercase;
+    font-size: 16px;
+    margin: 0 0 4px;
+  }
+  .modal .sub { font-size: 12.5px; color: var(--muted); margin: 0 0 16px; }
+  .modal label {
+    display: block;
+    font-size: 11.5px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #565c63;
+    margin: 12px 0 5px;
+  }
+  .modal input {
+    width: 100%;
+    padding: 9px 10px;
+    border: 1px solid var(--line);
+    border-radius: 3px;
+    font-family: 'Inter', sans-serif;
+    font-size: 14px;
+  }
+  .modal .row { display: flex; gap: 18px; margin-top: 18px; }
+  .modal .row button {
+    flex: 1;
+    padding: 10px;
+    border-radius: 3px;
+    border: none;
+    font-family: 'Inter', sans-serif;
+    font-weight: 600;
+    font-size: 13.5px;
+    cursor: pointer;
+  }
+  .modal .cancel { background: #eceef0; color: var(--ink); }
+  .modal .confirm { background: var(--orange); color: #fff; }
+
+  #blocked {
+    display: none;
+    max-width: 460px;
+    margin: 14vh auto;
+    text-align: center;
+    padding: 0 20px;
+  }
+  #blocked h2 { font-family: 'Oswald', sans-serif; text-transform: uppercase; }
+  #blocked p { color: var(--muted); font-size: 14px; line-height: 1.6; }
+</style>
+</head>
+<body>
+
+<div id="blocked">
+  <h2>Page unavailable here</h2>
+  <p>This page is only reachable from the dealership network. Connect to the shop Wi-Fi or a dealership computer and reload this page.</p>
+</div>
+
+<div id="app" style="display:none">
+  <header>
+    <h1>Manage Users</h1>
+    <a class="back" href="dashboard.html">&larr; Back to Board</a>
+  </header>
+
+  <div id="content"></div>
+</div>
+
+<div class="overlay" id="overlay">
+  <div class="modal" id="modal"></div>
+</div>
+
+<script>
+  const API_URL = "https://dealership-lead-tracker-api.whitakerm56.workers.dev/api";
+
+  const ROLE_META = {
+    sales_manager:   { label: "Sales Manager",   sub: "Gets notified on every new lead and every completed RO",           color: "var(--c-sales_manager)"   },
+    service_advisor: { label: "Service Advisor", sub: "Gets notified when a lead is ready to schedule",                   color: "var(--c-service_advisor)" },
+    parts:           { label: "Parts",           sub: "Gets notified when an appointment is scheduled",                  color: "var(--c-parts)"           },
+    salesperson:     { label: "Salespeople",     sub: "Available to assign for post-service follow-up",                  color: "var(--c-salesperson)"     },
+  };
+  const ROLE_ORDER = Object.keys(ROLE_META);
+
+  let users = [];
+  let editingUser = null; // set when the modal is in edit mode
+
+  async function loadUsers() {
+    try {
+      const res = await fetch(`${API_URL}/users`);
+      if (res.status === 403) {
+        document.getElementById("blocked").style.display = "block";
+        document.getElementById("app").style.display = "none";
+        return;
+      }
+      if (!res.ok) throw new Error("Failed to load users");
+      users = await res.json();
+      document.getElementById("blocked").style.display = "none";
+      document.getElementById("app").style.display = "block";
+      render();
+    } catch (err) {
+      console.error(err);
+    }
+  }
+
+  function render() {
+    const content = document.getElementById("content");
+    content.innerHTML = "";
+
+    for (const role of ROLE_ORDER) {
+      const meta = ROLE_META[role];
+      const members = users.filter((u) => u.role === role);
+
+      const section = document.createElement("div");
+      section.className = "section";
+      section.innerHTML = `
+        <div class="section-head" style="background:${meta.color}">
+          <span>${meta.label}</span>
+          <span class="sub">${meta.sub}</span>
+        </div>
+        <div class="rows"></div>
+        <div class="add-row"><button type="button">+ Add ${meta.label === "Salespeople" ? "Salesperson" : meta.label}</button></div>
+      `;
+      content.appendChild(section);
+
+      const rows = section.querySelector(".rows");
+      if (members.length === 0) {
+        rows.innerHTML = `<div class="empty-row">Nobody added yet — notifications fall back to the legacy email set in the Worker config.</div>`;
+      } else {
+        for (const u of members) rows.appendChild(renderRow(u));
+      }
+
+      section.querySelector(".add-row button").addEventListener("click", () => openModal(role));
+    }
+  }
+
+  function renderRow(user) {
+    const el = document.createElement("div");
+    el.className = "member-row";
+    el.innerHTML = `
+      <span class="name">${escapeHtml(user.name)}</span>
+      <span class="email">${escapeHtml(user.email)}</span>
+      <button type="button" class="icon-btn edit-btn" title="Edit">Edit</button>
+      <button type="button" class="icon-btn danger delete-btn" title="Remove">Remove</button>
+    `;
+    el.querySelector(".edit-btn").addEventListener("click", () => openModal(user.role, user));
+    el.querySelector(".delete-btn").addEventListener("click", () => removeUser(user));
+    return el;
+  }
+
+  function openModal(role, user = null) {
+    editingUser = user;
+    const meta = ROLE_META[role];
+    const overlay = document.getElementById("overlay");
+    const modal = document.getElementById("modal");
+
+    modal.innerHTML = `
+      <h2>${user ? "Edit" : "Add"} ${meta.label === "Salespeople" ? "Salesperson" : meta.label}</h2>
+      <p class="sub">${meta.sub}</p>
+      <label for="f_name">Name</label>
+      <input id="f_name" value="${user ? escapeHtml(user.name) : ""}" required />
+      <label for="f_email">Email</label>
+      <input id="f_email" type="email" value="${user ? escapeHtml(user.email) : ""}" required />
+      <div class="row">
+        <button class="cancel" id="cancelBtn">Cancel</button>
+        <button class="confirm" id="confirmBtn">${user ? "Save" : "Add"}</button>
+      </div>
+    `;
+    overlay.style.display = "flex";
+    modal.dataset.role = role;
+
+    document.getElementById("cancelBtn").onclick = () => (overlay.style.display = "none");
+    document.getElementById("confirmBtn").onclick = () => submitUser(role);
+  }
+
+  async function submitUser(role) {
+    const name = val("f_name");
+    const email = val("f_email");
+    if (!name || !email) return;
+
+    const confirmBtn = document.getElementById("confirmBtn");
+    confirmBtn.disabled = true;
+    confirmBtn.textContent = "Saving…";
+
+    try {
+      const res = editingUser
+        ? await fetch(`${API_URL}/users/${editingUser.id}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ name, email }),
+          })
+        : await fetch(`${API_URL}/users`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ name, email, role }),
+          });
+      if (!res.ok) throw new Error("Save failed");
+      document.getElementById("overlay").style.display = "none";
+      editingUser = null;
+      await loadUsers();
+    } catch (err) {
+      alert("Couldn't save that. Please try again.");
+      confirmBtn.disabled = false;
+      confirmBtn.textContent = editingUser ? "Save" : "Add";
+    }
+  }
+
+  async function removeUser(user) {
+    if (!confirm(`Remove ${user.name} (${user.email})?`)) return;
+    try {
+      const res = await fetch(`${API_URL}/users/${user.id}`, { method: "DELETE" });
+      if (!res.ok) throw new Error("Delete failed");
+      await loadUsers();
+    } catch (err) {
+      alert("Couldn't remove that person. Please try again.");
+    }
+  }
+
+  function val(id) {
+    const el = document.getElementById(id);
+    return el ? el.value.trim() : "";
+  }
+
+  function escapeHtml(str) {
+    return String(str ?? "")
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;")
+      .replaceAll('"', "&quot;");
+  }
+
+  document.getElementById("overlay").addEventListener("click", (e) => {
+    if (e.target.id === "overlay") document.getElementById("overlay").style.display = "none";
+  });
+
+  loadUsers();
+</script>
+</body>
+</html>
