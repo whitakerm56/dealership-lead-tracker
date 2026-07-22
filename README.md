@@ -6,6 +6,7 @@ Replaces the shared spreadsheet with:
 - a live ROI panel showing leads captured, RO revenue, program cost, and return
 - a "Manage Users" page (`users.html`) where you add/edit/remove who's in each role — that list drives who actually gets the notification emails
 - a "Settings" page (`settings.html`) covering the ROI cost assumption and the appointment-request rules (which days/hours are open, slot length, minimum lead time) that drive the public form's date/time picker
+- a "Stats" page (`stats.html`) with the ROI numbers (moved off the main board to keep it focused on active work) plus average time-in-stage across the pipeline, sorted slowest-first so bottlenecks are obvious
 - branded throughout with the Modern logo and its red/white/chrome palette (`modern-logo.png`) — the public form, the board, and both settings pages
 
 **Pipeline:** New Lead → Ready for Advisor → Appointment Scheduled → Parts Ordered → **Parts In-Stock** → **Service Complete (RO value entered)** → **Follow-Up Assigned** → **Follow-Up Done**
@@ -18,7 +19,9 @@ Replaces the shared spreadsheet with:
 
 **Requested appointment time:** the form limits requests to real availability, pulled live from `settings.html` — which days are open, what hours, 15-minute (or whatever you set) increments, and a minimum lead time so Parts has room to prep before the visit. It's stored separately from the Service Advisor's confirmed appointment time, so the dashboard can show both — "Requested" from the moment the lead lands, and "Scheduled" once the advisor locks it in (which starts pre-filled with the customer's request, ready to adjust if needed). If the settings API is ever unreachable, the form quietly falls back to a default of Mon–Fri 7:30 AM–5:00 PM / 15-minute slots / 3-hour lead time rather than breaking.
 
-**Why business hours and the ROI cost are on two different endpoints:** the public lead form needs to read the scheduling rules, but it should never be able to see your internal cost-per-redemption figure. `GET /api/business-hours` is public and returns only the scheduling fields; `GET/PATCH /api/settings` (used by `settings.html` and the dashboard's ROI panel) is IP-restricted and returns everything, including cost.
+**Why business hours and the ROI cost are on two different endpoints:** the public lead form needs to read the scheduling rules, but it should never be able to see your internal cost-per-redemption figure. `GET /api/business-hours` is public and returns only the scheduling fields; `GET/PATCH /api/settings` (used by `settings.html` and `stats.html`) is IP-restricted and returns everything, including cost.
+
+**How time-in-stage is measured:** every status change gets logged to a `lead_status_history` table with a timestamp. A Postgres function (`stage_durations()`) then averages, for each stage, the time between a lead entering it and entering the next one — across every lead that's actually made that transition. A stage a lead hasn't exited yet doesn't count toward its own average (there's nothing to measure until it moves on), and "Closed" never appears on the Stats page since there's no next stage to measure to. Leads created before this feature existed get a one-time backfill (see the migration note in `schema.sql`) so they're not silently excluded — though for any lead that had already moved through multiple stages before the backfill ran, only its current stage's timing is recoverable, not its full history.
 
 ## 1. Supabase
 
@@ -93,7 +96,7 @@ The public lead form (`POST /api/leads`) is always exempt from this check, since
 
 1. In `public/index.html`, replace `https://api.yourdealership-leads.workers.dev/api/leads` with your Worker URL + `/api/leads` (as the `API_BASE` + `/leads` combination — see the top of the script).
 2. In `public/dashboard.html`, replace `https://api.yourdealership-leads.workers.dev/api` with your Worker URL + `/api` (no trailing `/leads` — the dashboard calls `/api/leads`, `/api/settings`, and `/api/users`).
-3. In `public/users.html` and `public/settings.html`, set the same `API_URL` as `dashboard.html`.
+3. In `public/users.html`, `public/settings.html`, and `public/stats.html`, set the same `API_URL` as `dashboard.html`.
 4. Push all four files in `public/` — plus `modern-logo.png` — to a GitHub repo and enable Pages (Settings → Pages → deploy from branch, root or `/public`). The logo needs to sit in the same folder as the HTML files, since every page references it by that relative filename.
 5. You'll end up with two URLs:
    - `.../index.html` — put this behind the QR code on the flyer
