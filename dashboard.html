@@ -70,6 +70,17 @@
     cursor: pointer;
   }
   header button:hover { border-color: var(--orange); }
+  header a.header-link {
+    background: transparent;
+    border: 1px solid var(--chrome-line);
+    color: #fff;
+    text-decoration: none;
+    font-family: 'Inter', sans-serif;
+    font-size: 12.5px;
+    padding: 6px 12px;
+    border-radius: 3px;
+  }
+  header a.header-link:hover { border-color: var(--orange); }
 
   /* ROI strip */
   #roi {
@@ -371,6 +382,7 @@
     <h1>Commercial Lead Board</h1>
     <div class="status">
       <span id="lastUpdated">—</span>
+      <a class="header-link" href="users.html">Manage Users</a>
       <button id="refreshBtn">Refresh</button>
     </div>
   </header>
@@ -443,6 +455,7 @@
   };
 
   let leads = [];
+  let users = [];
   let oilChangeCost = 35;
   let activeStatus = "all";
   let pollTimer = null;
@@ -450,12 +463,13 @@
 
   async function loadAll() {
     try {
-      const [leadsRes, settingsRes] = await Promise.all([
+      const [leadsRes, settingsRes, usersRes] = await Promise.all([
         fetch(`${API_URL}/leads`),
         fetch(`${API_URL}/settings`),
+        fetch(`${API_URL}/users`),
       ]);
 
-      if (leadsRes.status === 403 || settingsRes.status === 403) {
+      if (leadsRes.status === 403 || settingsRes.status === 403 || usersRes.status === 403) {
         document.getElementById("blocked").style.display = "block";
         document.getElementById("app").style.display = "none";
         clearInterval(pollTimer);
@@ -464,6 +478,7 @@
       if (!leadsRes.ok) throw new Error("Failed to load leads");
 
       leads = await leadsRes.json();
+      if (usersRes.ok) users = await usersRes.json();
       if (settingsRes.ok) {
         const settings = await settingsRes.json();
         oilChangeCost = Number(settings.oil_change_cost) || 0;
@@ -626,12 +641,25 @@
         <input id="f_closed_by" required />
       `;
     } else if (next === "follow_up_assigned") {
-      fields = `
-        <label for="f_followup_assignee_name">Salesperson Name</label>
-        <input id="f_followup_assignee_name" required />
-        <label for="f_followup_assignee_email">Salesperson Email</label>
-        <input id="f_followup_assignee_email" type="email" required />
-      `;
+      const salespeople = users.filter((u) => u.role === "salesperson");
+      if (salespeople.length > 0) {
+        fields = `
+          <label for="f_followup_select">Assign To</label>
+          <select id="f_followup_select" required style="width:100%;padding:9px 10px;border:1px solid var(--line);border-radius:3px;font-family:'Inter',sans-serif;font-size:14px;">
+            <option value="">Select a salesperson…</option>
+            ${salespeople.map((u) => `<option value="${escapeHtml(u.email)}" data-name="${escapeHtml(u.name)}">${escapeHtml(u.name)}</option>`).join("")}
+          </select>
+          <p class="sub" style="margin-top:8px">Manage this list on the <a href="users.html">Users</a> page.</p>
+        `;
+      } else {
+        fields = `
+          <label for="f_followup_assignee_name">Salesperson Name</label>
+          <input id="f_followup_assignee_name" required />
+          <label for="f_followup_assignee_email">Salesperson Email</label>
+          <input id="f_followup_assignee_email" type="email" required />
+          <p class="sub" style="margin-top:8px">Add salespeople once on the <a href="users.html">Users</a> page to turn this into a dropdown.</p>
+        `;
+      }
     } else if (next === "follow_up_complete") {
       fields = `
         <label for="f_followup_notes">Outcome Notes (optional)</label>
@@ -681,9 +709,17 @@
       payload.closed_by = val("f_closed_by");
       if (!payload.closed_by) return;
     } else if (next === "follow_up_assigned") {
-      payload.followup_assignee_name = val("f_followup_assignee_name");
-      payload.followup_assignee_email = val("f_followup_assignee_email");
-      if (!payload.followup_assignee_name || !payload.followup_assignee_email) return;
+      const select = document.getElementById("f_followup_select");
+      if (select) {
+        const opt = select.selectedOptions[0];
+        payload.followup_assignee_email = select.value;
+        payload.followup_assignee_name = opt ? opt.dataset.name : "";
+        if (!payload.followup_assignee_email) return;
+      } else {
+        payload.followup_assignee_name = val("f_followup_assignee_name");
+        payload.followup_assignee_email = val("f_followup_assignee_email");
+        if (!payload.followup_assignee_name || !payload.followup_assignee_email) return;
+      }
     } else if (next === "follow_up_complete") {
       payload.followup_notes = val("f_followup_notes");
       payload.followup_completed_by = val("f_followup_completed_by");
