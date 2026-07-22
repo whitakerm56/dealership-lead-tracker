@@ -339,6 +339,70 @@
   .modal .cancel { background: #eceef0; color: var(--ink); }
   .modal .confirm { background: var(--red); color: #fff; }
 
+  .modal.wide { max-width: 520px; }
+  .detail-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px 18px;
+    margin-bottom: 6px;
+  }
+  .detail-grid .field label {
+    margin: 0 0 2px;
+  }
+  .detail-grid .field .value {
+    font-size: 13.5px;
+    color: var(--ink);
+    word-break: break-word;
+  }
+  .detail-grid .field .value a { color: inherit; }
+  .detail-grid .field.span-2 { grid-column: 1 / -1; }
+
+  .log-heading {
+    font-family: 'Oswald', sans-serif;
+    text-transform: uppercase;
+    font-size: 13px;
+    letter-spacing: 0.03em;
+    margin: 18px 0 8px;
+    padding-top: 14px;
+    border-top: 1px dashed var(--line);
+  }
+  .log-list {
+    max-height: 260px;
+    overflow-y: auto;
+    display: grid;
+    gap: 2px;
+  }
+  .log-entry {
+    display: flex;
+    gap: 10px;
+    padding: 8px 2px;
+    border-bottom: 1px solid #f0f0f0;
+  }
+  .log-entry:last-child { border-bottom: none; }
+  .log-entry .dot {
+    width: 9px; height: 9px;
+    border-radius: 50%;
+    margin-top: 4px;
+    flex-shrink: 0;
+  }
+  .log-entry .log-title {
+    font-weight: 600;
+    font-size: 13px;
+  }
+  .log-entry .log-time {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10.5px;
+    color: var(--muted);
+    margin-top: 1px;
+  }
+  .log-entry .log-detail {
+    font-size: 12px;
+    color: #4b5157;
+    margin-top: 3px;
+    line-height: 1.4;
+  }
+  .log-empty { font-size: 12px; color: var(--muted); padding: 8px 2px; }
+
   #blocked {
     display: none;
     max-width: 460px;
@@ -614,7 +678,14 @@
     `;
 
     const advanceBtn = el.querySelector(".advance");
-    if (advanceBtn) advanceBtn.addEventListener("click", () => openModal(lead));
+    if (advanceBtn) advanceBtn.addEventListener("click", (e) => { e.stopPropagation(); openModal(lead); });
+
+    el.style.cursor = "pointer";
+    el.addEventListener("click", (e) => {
+      if (e.target.closest("a, button")) return;
+      openDetailsModal(lead);
+    });
+
     return el;
   }
 
@@ -622,6 +693,7 @@
     const next = NEXT[lead.status];
     const overlay = document.getElementById("overlay");
     const modal = document.getElementById("modal");
+    modal.classList.remove("wide");
 
     let fields = "";
     if (next === "ready_for_advisor") {
@@ -704,6 +776,113 @@
 
     document.getElementById("cancelBtn").onclick = () => (overlay.style.display = "none");
     document.getElementById("confirmBtn").onclick = () => submitAdvance(lead, next);
+  }
+
+  async function openDetailsModal(lead) {
+    const overlay = document.getElementById("overlay");
+    const modal = document.getElementById("modal");
+    modal.classList.add("wide");
+    const meta = STATUS_META[lead.status];
+    const ticketNo = String(lead.ticket_no ?? "").padStart(4, "0");
+
+    modal.innerHTML = `
+      <h2>${escapeHtml(lead.company_name)}</h2>
+      <p class="sub">Ticket #${ticketNo} &middot; ${meta.label}</p>
+      <div class="detail-grid">
+        <div class="field"><label>Contact</label><div class="value">${escapeHtml(lead.contact_name)} &middot; <a href="tel:${escapeHtml(lead.phone)}">${escapeHtml(lead.phone)}</a></div></div>
+        <div class="field"><label>Email</label><div class="value">${escapeHtml(lead.email)}</div></div>
+        <div class="field"><label>VIN</label><div class="value">${escapeHtml(lead.vin || "—")}</div></div>
+        <div class="field"><label>Vehicle</label><div class="value">${escapeHtml(lead.vehicle_info || "—")}</div></div>
+        <div class="field"><label>Requested Appointment</label><div class="value">${lead.requested_appointment_date ? formatDT(lead.requested_appointment_date) : "—"}</div></div>
+        <div class="field"><label>Scheduled Appointment</label><div class="value">${lead.appointment_date ? formatDT(lead.appointment_date) : "—"}</div></div>
+        <div class="field"><label>RO Value</label><div class="value">${lead.ro_value != null ? money(Number(lead.ro_value)) : "—"}</div></div>
+        <div class="field"><label>Follow-Up Assigned To</label><div class="value">${lead.followup_assignee_name ? `${escapeHtml(lead.followup_assignee_name)} (${escapeHtml(lead.followup_assignee_email || "")})` : "—"}</div></div>
+      </div>
+      <div class="log-heading">Transaction Log</div>
+      <div class="log-list" id="logList"><div class="log-empty">Loading…</div></div>
+      <div class="row">
+        <button class="cancel" id="closeDetailsBtn" style="flex:1">Close</button>
+      </div>
+    `;
+    overlay.style.display = "flex";
+    document.getElementById("closeDetailsBtn").onclick = () => (overlay.style.display = "none");
+
+    try {
+      const res = await fetch(`${API_URL}/leads/${lead.id}/history`);
+      const history = res.ok ? await res.json() : [];
+      renderLog(history, lead);
+    } catch (err) {
+      document.getElementById("logList").innerHTML = `<div class="log-empty">Couldn't load the log.</div>`;
+    }
+  }
+
+  function renderLog(history, lead) {
+    const list = document.getElementById("logList");
+    if (!list) return; // modal was closed before the fetch finished
+    if (history.length === 0) {
+      list.innerHTML = `<div class="log-empty">No history yet.</div>`;
+      return;
+    }
+    list.innerHTML = "";
+    for (const entry of history) {
+      const meta = STATUS_META[entry.status];
+      if (!meta) continue;
+      const detail = logEntryDetail(entry.status, lead);
+      const el = document.createElement("div");
+      el.className = "log-entry";
+      el.innerHTML = `
+        <span class="dot" style="background:${meta.color}"></span>
+        <div>
+          <div class="log-title">${meta.label}</div>
+          <div class="log-time">${formatDT(entry.entered_at)}</div>
+          ${detail ? `<div class="log-detail">${escapeHtml(detail)}</div>` : ""}
+        </div>
+      `;
+      list.appendChild(el);
+    }
+  }
+
+  // Maps each stage to the specific fields that get captured when a lead
+  // enters it -- those fields are only ever written once, at that exact
+  // transition, so this reconstructs a readable log line per stage without
+  // needing to store a separate snapshot per history entry.
+  function logEntryDetail(status, lead) {
+    const parts = [];
+    switch (status) {
+      case "new":
+        if (lead.vin) parts.push(`VIN ${lead.vin}`);
+        if (lead.vehicle_info) parts.push(lead.vehicle_info);
+        if (lead.requested_appointment_date) parts.push(`Requested ${formatDT(lead.requested_appointment_date)}`);
+        break;
+      case "ready_for_advisor":
+        if (lead.assigned_by) parts.push(`Assigned by ${lead.assigned_by}`);
+        break;
+      case "appointment_scheduled":
+        if (lead.appointment_date) parts.push(`Scheduled ${formatDT(lead.appointment_date)}`);
+        if (lead.scheduled_by) parts.push(`by ${lead.scheduled_by}`);
+        if (lead.advisor_notes) parts.push(`Notes: ${lead.advisor_notes}`);
+        break;
+      case "parts_ordered":
+        if (lead.parts_by) parts.push(`by ${lead.parts_by}`);
+        if (lead.parts_notes) parts.push(`Notes: ${lead.parts_notes}`);
+        break;
+      case "parts_in_stock":
+        if (lead.parts_in_stock_by) parts.push(`by ${lead.parts_in_stock_by}`);
+        if (lead.parts_in_stock_notes) parts.push(`Notes: ${lead.parts_in_stock_notes}`);
+        break;
+      case "service_complete":
+        if (lead.ro_value != null) parts.push(`RO ${money(Number(lead.ro_value))}`);
+        if (lead.closed_by) parts.push(`by ${lead.closed_by}`);
+        break;
+      case "follow_up_assigned":
+        if (lead.followup_assignee_name) parts.push(`Assigned to ${lead.followup_assignee_name}`);
+        break;
+      case "follow_up_complete":
+        if (lead.followup_completed_by) parts.push(`by ${lead.followup_completed_by}`);
+        if (lead.followup_notes) parts.push(`Notes: ${lead.followup_notes}`);
+        break;
+    }
+    return parts.join(" · ");
   }
 
   async function submitAdvance(lead, next) {
