@@ -109,18 +109,6 @@
     font-weight: 600;
   }
   .stat.highlight .stat-value { color: var(--orange); }
-  .stat.editable input {
-    width: 100%;
-    background: transparent;
-    border: none;
-    border-bottom: 1px solid var(--chrome-line);
-    color: #fff;
-    font-family: 'Oswald', sans-serif;
-    font-size: 21px;
-    font-weight: 600;
-    padding: 0 0 2px;
-  }
-  .stat.editable input:focus { outline: none; border-bottom-color: var(--orange); }
 
   /* Sidebar + content layout */
   #layout {
@@ -382,6 +370,7 @@
     <h1>Commercial Lead Board</h1>
     <div class="status">
       <span id="lastUpdated">—</span>
+      <a class="header-link" href="settings.html">Settings</a>
       <a class="header-link" href="users.html">Manage Users</a>
       <button id="refreshBtn">Refresh</button>
     </div>
@@ -408,9 +397,9 @@
       <div class="stat-label">ROI</div>
       <div class="stat-value" id="statROI">—</div>
     </div>
-    <div class="stat editable">
+    <div class="stat">
       <div class="stat-label">Cost / Redemption</div>
-      <input id="costInput" type="number" step="0.01" min="0" />
+      <div class="stat-value" id="statCostPerRedemption">$0</div>
     </div>
   </div>
 
@@ -459,7 +448,6 @@
   let oilChangeCost = 35;
   let activeStatus = "all";
   let pollTimer = null;
-  let costSaveTimer = null;
 
   async function loadAll() {
     try {
@@ -482,8 +470,6 @@
       if (settingsRes.ok) {
         const settings = await settingsRes.json();
         oilChangeCost = Number(settings.oil_change_cost) || 0;
-        const costInput = document.getElementById("costInput");
-        if (document.activeElement !== costInput) costInput.value = oilChangeCost;
       }
 
       document.getElementById("blocked").style.display = "none";
@@ -509,6 +495,7 @@
     document.getElementById("statRevenue").textContent = money(revenue);
     document.getElementById("statCost").textContent = money(cost);
     document.getElementById("statROI").textContent = roi === null ? "—" : `${roi >= 0 ? "+" : ""}${roi.toFixed(0)}%`;
+    document.getElementById("statCostPerRedemption").textContent = money(oilChangeCost);
   }
 
   function renderSidebar() {
@@ -753,20 +740,6 @@
     }
   }
 
-  async function saveCost(value) {
-    try {
-      await fetch(`${API_URL}/settings`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ oil_change_cost: value }),
-      });
-      oilChangeCost = value;
-      renderStats();
-    } catch (err) {
-      console.error("Failed to save cost setting", err);
-    }
-  }
-
   function val(id) {
     const el = document.getElementById(id);
     return el ? el.value.trim() : "";
@@ -794,12 +767,6 @@
   document.getElementById("refreshBtn").addEventListener("click", loadAll);
   document.getElementById("overlay").addEventListener("click", (e) => {
     if (e.target.id === "overlay") document.getElementById("overlay").style.display = "none";
-  });
-  document.getElementById("costInput").addEventListener("input", (e) => {
-    clearTimeout(costSaveTimer);
-    const value = Number(e.target.value);
-    if (!Number.isFinite(value) || value < 0) return;
-    costSaveTimer = setTimeout(() => saveCost(value), 700);
   });
 
   loadAll();
