@@ -14,10 +14,12 @@ Replaces the shared spreadsheet with:
 
 **VIN capture:** the public form requires a 17-character VIN and decodes it live against NHTSA's free vPIC API (no key needed) as the person types, showing the year/make/model/trim right there before they submit — or a clear warning if the VIN doesn't check out. The decoded description gets stored on the lead and shows up on the dashboard immediately, and pre-fills the vehicle field when the Service Advisor later logs the appointment.
 
+**Requested appointment time:** the form also captures when the customer wants to come in. It's stored separately from the Service Advisor's confirmed appointment time, so the dashboard can show both — "Requested" from the moment the lead lands, and "Scheduled" once the advisor locks it in (which starts pre-filled with the customer's request, ready to adjust if needed).
+
 ## 1. Supabase
 
 1. Create a new Supabase project (separate from any other project you run).
-2. Open the SQL editor and run `supabase/schema.sql`.
+2. Open the SQL editor and run `supabase/schema.sql`. Already ran this before on a live project? Just run the `alter table` migration lines noted in a comment at the top of that file instead — currently that's the `vin` and `requested_appointment_date` columns.
 3. Under Project Settings → API, copy:
    - **Project URL** → `SUPABASE_URL`
    - **service_role key** (not the anon key) → `SUPABASE_SERVICE_KEY`
@@ -89,7 +91,7 @@ The public lead form (`POST /api/leads`) is always exempt from this check, since
 2. In `public/dashboard.html`, replace `https://api.yourdealership-leads.workers.dev/api` with your Worker URL + `/api` (no trailing `/leads` — the dashboard calls `/api/leads`, `/api/settings`, and `/api/users`).
 3. In `public/users.html`, set the same `API_URL` as `dashboard.html`.
 4. Push all three files in `public/` to a GitHub repo and enable Pages (Settings → Pages → deploy from branch, root or `/public`).
-4. You'll end up with two URLs:
+5. You'll end up with two URLs:
    - `.../index.html` — put this behind the QR code on the flyer
    - `.../dashboard.html` — bookmark this on the dealership computers/tablets each department will use
 
