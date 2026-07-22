@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Settings — Commercial Lead Board</title>
+<title>Settings — Commercial Lead Tracker</title>
 <meta name="robots" content="noindex" />
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -17,7 +17,8 @@
     --card: #ffffff;
     --line: #ccd1d6;
     --muted: #666d75;
-    --orange: #ff6a1a;
+    --red: #ff0000;
+    --red-dark: #cc0000;
     --green: #1f8a4c;
   }
   * { box-sizing: border-box; }
@@ -35,7 +36,17 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    border-bottom: 3px solid var(--orange);
+    border-bottom: 3px solid var(--red);
+  }
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+  .brand .header-logo {
+    height: 32px;
+    width: auto;
+    display: block;
   }
   header h1 {
     font-family: 'Oswald', sans-serif;
@@ -53,7 +64,7 @@
     padding: 6px 12px;
     border-radius: 3px;
   }
-  header a.back:hover { border-color: var(--orange); }
+  header a.back:hover { border-color: var(--red); }
 
   #content {
     max-width: 640px;
@@ -187,7 +198,7 @@
   }
   .save-bar button {
     padding: 11px 22px;
-    background: var(--orange);
+    background: var(--red);
     color: #fff;
     border: none;
     border-radius: 3px;
@@ -220,7 +231,10 @@
 
 <div id="app" style="display:none">
   <header>
-    <h1>Settings</h1>
+    <div class="brand">
+      <img src="modern-logo.png" alt="Modern" class="header-logo" />
+      <h1>Settings</h1>
+    </div>
     <a class="back" href="dashboard.html">&larr; Back to Board</a>
   </header>
 
