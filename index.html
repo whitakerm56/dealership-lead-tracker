@@ -17,6 +17,8 @@
     --orange: #ff6a1a;
     --orange-dark: #d9560f;
     --green: #1f8a4c;
+    --red: #c0392b;
+    --amber: #b8860b;
   }
   * { box-sizing: border-box; }
   body {
@@ -104,6 +106,46 @@
     outline-offset: 1px;
     background: #fff;
   }
+  input#vin {
+    font-family: 'JetBrains Mono', monospace;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+  .vin-hint {
+    font-size: 11px;
+    color: #8b9096;
+    margin-top: 5px;
+  }
+  .vin-result {
+    display: none;
+    margin-top: 8px;
+    padding: 9px 11px;
+    border-radius: 3px;
+    font-size: 13px;
+    font-weight: 600;
+  }
+  .vin-result.loading {
+    display: block;
+    background: #f1f2f3;
+    color: #666d75;
+    font-weight: 500;
+  }
+  .vin-result.valid {
+    display: block;
+    background: #e5f4ea;
+    color: var(--green);
+  }
+  .vin-result.invalid {
+    display: block;
+    background: #fdeceb;
+    color: var(--red);
+  }
+  .vin-result.unreachable {
+    display: block;
+    background: #fdf3e0;
+    color: var(--amber);
+    font-weight: 500;
+  }
   button {
     margin-top: 6px;
     padding: 14px 16px;
@@ -178,16 +220,22 @@
         <input id="company_name" name="company_name" type="text" required autocomplete="organization" />
       </div>
       <div>
-        <label for="contact_name">Your Name</label>
+        <label for="contact_name">Contact Name</label>
         <input id="contact_name" name="contact_name" type="text" required autocomplete="name" />
       </div>
       <div>
-        <label for="phone">Phone Number</label>
+        <label for="phone">Contact Phone Number</label>
         <input id="phone" name="phone" type="tel" required autocomplete="tel" />
       </div>
       <div>
-        <label for="email">Email</label>
+        <label for="email">Contact Email</label>
         <input id="email" name="email" type="email" required autocomplete="email" />
+      </div>
+      <div>
+        <label for="vin">VIN Number</label>
+        <input id="vin" name="vin" type="text" maxlength="17" required autocomplete="off" placeholder="17-character VIN" />
+        <p class="vin-hint">Found on the dash (driver's side, visible through the windshield) or the driver's door jamb.</p>
+        <div class="vin-result" id="vinResult"></div>
       </div>
       <button type="submit" id="submitBtn">Submit</button>
       <p class="fineprint">One redemption per company. A service advisor will call to schedule.</p>
@@ -204,13 +252,116 @@
   // Set this to your deployed Worker URL.
   const API_URL = "https://dealership-lead-tracker-api.whitakerm56.workers.dev/api/leads";
 
+  const VALID_VIN_CHARS = "0123456789ABCDEFGHJKLMNPRSTUVWXYZ"; // VINs never use I, O, or Q
+
   const form = document.getElementById("leadForm");
   const errorBox = document.getElementById("errorBox");
   const submitBtn = document.getElementById("submitBtn");
+  const vinInput = document.getElementById("vin");
+  const vinResult = document.getElementById("vinResult");
+
+  let vinStatus = "idle"; // idle | loading | valid | invalid | unreachable
+  let vehicleDescription = "";
+  let lastDecodedVin = "";
+  let vinRequestId = 0;
+
+  vinInput.addEventListener("input", () => {
+    const cleaned = vinInput.value
+      .toUpperCase()
+      .split("")
+      .filter((ch) => VALID_VIN_CHARS.includes(ch))
+      .join("")
+      .slice(0, 17);
+    if (cleaned !== vinInput.value) vinInput.value = cleaned;
+
+    if (cleaned.length === 17) {
+      decodeVin(cleaned);
+    } else {
+      vinStatus = "idle";
+      vehicleDescription = "";
+      lastDecodedVin = "";
+      renderVinResult();
+    }
+  });
+
+  async function decodeVin(vin) {
+    if (vin === lastDecodedVin) return;
+    lastDecodedVin = vin;
+    vinStatus = "loading";
+    vehicleDescription = "";
+    renderVinResult();
+
+    const requestId = ++vinRequestId;
+    try {
+      const res = await fetch(`https://vpic.nhtsa.dot.gov/api/vehicles/decodevinvalues/${vin}?format=json`);
+      if (!res.ok) throw new Error("VIN service unavailable");
+      const data = await res.json();
+      if (requestId !== vinRequestId) return; // a newer VIN entry superseded this one
+
+      const result = data.Results && data.Results[0];
+      if (result && result.ErrorCode === "0" && result.Make && result.ModelYear) {
+        const parts = [result.ModelYear, titleCase(result.Make), result.Model, result.Trim].filter(Boolean);
+        vehicleDescription = parts.join(" ");
+        vinStatus = "valid";
+      } else {
+        vinStatus = "invalid";
+        vehicleDescription = "";
+      }
+    } catch (err) {
+      if (requestId !== vinRequestId) return;
+      vinStatus = "unreachable";
+      vehicleDescription = "";
+    }
+    renderVinResult();
+  }
+
+  function renderVinResult() {
+    vinResult.className = "vin-result";
+    if (vinStatus === "idle") {
+      vinResult.textContent = "";
+      return;
+    }
+    if (vinStatus === "loading") {
+      vinResult.classList.add("loading");
+      vinResult.textContent = "Decoding VIN…";
+    } else if (vinStatus === "valid") {
+      vinResult.classList.add("valid");
+      vinResult.textContent = vehicleDescription;
+    } else if (vinStatus === "invalid") {
+      vinResult.classList.add("invalid");
+      vinResult.textContent = "That VIN doesn't look right — please double-check it.";
+    } else if (vinStatus === "unreachable") {
+      vinResult.classList.add("unreachable");
+      vinResult.textContent = "Couldn't verify the VIN right now — you can still submit, we'll confirm it later.";
+    }
+  }
+
+  function titleCase(str) {
+    return String(str)
+      .toLowerCase()
+      .replace(/\b\w/g, (c) => c.toUpperCase());
+  }
 
   form.addEventListener("submit", async (e) => {
     e.preventDefault();
     errorBox.style.display = "none";
+
+    if (vinInput.value.length !== 17) {
+      errorBox.textContent = "Please enter a complete 17-character VIN.";
+      errorBox.style.display = "block";
+      return;
+    }
+    if (vinStatus === "invalid") {
+      errorBox.textContent = "That VIN couldn't be verified. Please double-check it before submitting.";
+      errorBox.style.display = "block";
+      return;
+    }
+    if (vinStatus === "loading") {
+      errorBox.textContent = "Still verifying the VIN — one moment, then try again.";
+      errorBox.style.display = "block";
+      return;
+    }
+
     submitBtn.disabled = true;
     submitBtn.textContent = "Submitting…";
 
@@ -219,6 +370,8 @@
       contact_name: form.contact_name.value.trim(),
       phone: form.phone.value.trim(),
       email: form.email.value.trim(),
+      vin: vinInput.value,
+      vehicle_info: vehicleDescription || null,
     };
 
     try {
