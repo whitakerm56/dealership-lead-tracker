@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Commercial Lead Tracker</title>
+<title>Commercial Service Lead Tracker</title>
 <meta name="robots" content="noindex" />
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -24,6 +24,7 @@
     --c-ready: #b8860b;
     --c-sched: #ff6a1a;
     --c-parts: #0f8b8d;
+    --c-parts-stock: #14b8c4;
     --c-svc: #6a4fb3;
     --c-fu: #c2447a;
     --c-done: #1f8a4c;
@@ -380,7 +381,7 @@
   <header>
     <div class="brand">
       <img src="modern-logo.png" alt="Modern" class="header-logo" />
-      <h1>Commercial Lead Tracker</h1>
+      <h1>Commercial Service Lead Tracker</h1>
     </div>
     <div class="status">
       <span id="lastUpdated">—</span>
@@ -435,6 +436,7 @@
     ready_for_advisor:     { label: "Ready for Advisor",  color: "var(--c-ready)"},
     appointment_scheduled: { label: "Appointment Set",    color: "var(--c-sched)"},
     parts_ordered:         { label: "Parts Prep",         color: "var(--c-parts)"},
+    parts_in_stock:        { label: "Parts In-Stock",     color: "var(--c-parts-stock)"},
     service_complete:      { label: "Service Complete",   color: "var(--c-svc)"  },
     follow_up_assigned:    { label: "Follow-Up",          color: "var(--c-fu)"   },
     follow_up_complete:    { label: "Closed",             color: "var(--c-done)" },
@@ -444,7 +446,8 @@
     new: "ready_for_advisor",
     ready_for_advisor: "appointment_scheduled",
     appointment_scheduled: "parts_ordered",
-    parts_ordered: "service_complete",
+    parts_ordered: "parts_in_stock",
+    parts_in_stock: "service_complete",
     service_complete: "follow_up_assigned",
     follow_up_assigned: "follow_up_complete",
   };
@@ -452,7 +455,8 @@
     new: "Assign to Advisor",
     ready_for_advisor: "Log Appointment",
     appointment_scheduled: "Mark Parts Ordered",
-    parts_ordered: "Close RO & Complete",
+    parts_ordered: "Mark Parts In-Stock",
+    parts_in_stock: "Close RO & Complete",
     service_complete: "Assign Follow-Up",
     follow_up_assigned: "Mark Follow-Up Done",
   };
@@ -641,6 +645,13 @@
         <label for="f_parts_by">Your Name (Parts)</label>
         <input id="f_parts_by" required />
       `;
+    } else if (next === "parts_in_stock") {
+      fields = `
+        <label for="f_parts_in_stock_notes">Notes (optional)</label>
+        <textarea id="f_parts_in_stock_notes" placeholder="e.g. all parts received, or partial with ETA"></textarea>
+        <label for="f_parts_in_stock_by">Your Name (Parts)</label>
+        <input id="f_parts_in_stock_by" required />
+      `;
     } else if (next === "service_complete") {
       fields = `
         <label for="f_ro_value">RO Value ($)</label>
@@ -710,6 +721,10 @@
       payload.parts_notes = val("f_parts_notes");
       payload.parts_by = val("f_parts_by");
       if (!payload.parts_by) return;
+    } else if (next === "parts_in_stock") {
+      payload.parts_in_stock_notes = val("f_parts_in_stock_notes");
+      payload.parts_in_stock_by = val("f_parts_in_stock_by");
+      if (!payload.parts_in_stock_by) return;
     } else if (next === "service_complete") {
       const roValue = val("f_ro_value");
       if (roValue === "" || Number(roValue) < 0) return;
