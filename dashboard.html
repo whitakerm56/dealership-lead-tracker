@@ -552,6 +552,9 @@
   };
 
   let leads = [];
+  let businessHoursConfig = null;
+  const DAY_KEYS = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
+  const APPT_DAYS_TO_OFFER = 10;
   let users = [];
   let activeStatus = "all";
   const urlStatus = new URLSearchParams(window.location.search).get("status");
@@ -748,6 +751,117 @@
     `;
   }
 
+  // Fetched once at page load and cached -- business hours rarely change,
+  // so there's no need to re-fetch every time the Log Appointment modal opens.
+  async function loadBusinessHours() {
+    try {
+      const res = await fetch(`${API_URL}/business-hours`);
+      if (res.ok) businessHoursConfig = await res.json();
+    } catch (err) {
+      console.error("Failed to load business hours", err);
+    }
+  }
+
+  function parseTimeParts(hhmm) {
+    const [hour, minute] = String(hhmm).split(":").map(Number);
+    return { hour: hour || 0, minute: minute || 0 };
+  }
+
+  function apptDayKey(d) {
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  }
+
+  function apptSlotsForDay(dayStart, dayConfig, slotMinutes) {
+    const openTime = parseTimeParts(dayConfig.start);
+    const closeTime = parseTimeParts(dayConfig.end);
+    const slots = [];
+    const start = new Date(dayStart);
+    start.setHours(openTime.hour, openTime.minute, 0, 0);
+    const end = new Date(dayStart);
+    end.setHours(closeTime.hour, closeTime.minute, 0, 0);
+    let cursor = new Date(start);
+    while (cursor < end) {
+      slots.push(new Date(cursor));
+      cursor = new Date(cursor.getTime() + slotMinutes * 60000);
+    }
+    return slots;
+  }
+
+  // Mirrors the public lead form's picker exactly: same business hours,
+  // same slot length, same minimum lead time -- pulled from the same
+  // Settings-backed endpoint. Falls back to sane defaults if the fetch
+  // hasn't resolved yet.
+  function buildAppointmentAvailability() {
+    const config = businessHoursConfig || {};
+    const businessHours = config.business_hours || {
+      sun: { open: false, start: "07:30", end: "17:00" },
+      mon: { open: true, start: "07:30", end: "17:00" },
+      tue: { open: true, start: "07:30", end: "17:00" },
+      wed: { open: true, start: "07:30", end: "17:00" },
+      thu: { open: true, start: "07:30", end: "17:00" },
+      fri: { open: true, start: "07:30", end: "17:00" },
+      sat: { open: false, start: "07:30", end: "17:00" },
+    };
+    const slotMinutes = config.slot_minutes || 15;
+    const leadTimeHours = config.lead_time_hours != null ? config.lead_time_hours : 3;
+
+    const availability = {};
+    const earliest = new Date(Date.now() + leadTimeHours * 60 * 60000);
+    const dayCursor = new Date();
+    dayCursor.setHours(0, 0, 0, 0);
+
+    let added = 0;
+    let safety = 0;
+    while (added < APPT_DAYS_TO_OFFER && safety < 60) {
+      const dayConfig = businessHours[DAY_KEYS[dayCursor.getDay()]];
+      if (dayConfig && dayConfig.open) {
+        const daySlots = apptSlotsForDay(dayCursor, dayConfig, slotMinutes).filter((s) => s >= earliest);
+        if (daySlots.length > 0) {
+          availability[apptDayKey(dayCursor)] = daySlots.map((s) => ({
+            value: s.toISOString(),
+            label: s.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }),
+          }));
+          added++;
+        }
+      }
+      dayCursor.setDate(dayCursor.getDate() + 1);
+      safety++;
+    }
+    return availability;
+  }
+
+  function populateAppointmentPickers(lead) {
+    const availability = buildAppointmentAvailability();
+    const dateSelect = document.getElementById("f_appointment_date_select");
+    const timeSelect = document.getElementById("f_appointment_time_select");
+    const dateKeys = Object.keys(availability);
+
+    dateSelect.innerHTML = dateKeys
+      .map((key) => {
+        const [y, m, d] = key.split("-").map(Number);
+        const label = new Date(y, m - 1, d).toLocaleDateString([], { weekday: "short", month: "short", day: "numeric" });
+        return `<option value="${key}">${label}</option>`;
+      })
+      .join("");
+
+    const requestedIso = lead.requested_appointment_date ? new Date(lead.requested_appointment_date).toISOString() : null;
+    const requestedKey = lead.requested_appointment_date ? apptDayKey(new Date(lead.requested_appointment_date)) : null;
+    if (requestedKey && dateKeys.includes(requestedKey)) {
+      dateSelect.value = requestedKey;
+    }
+
+    function populateTimes() {
+      const slots = availability[dateSelect.value] || [];
+      timeSelect.innerHTML = slots.map((s) => `<option value="${s.value}">${s.label}</option>`).join("");
+      if (requestedIso) {
+        const match = slots.find((s) => s.value === requestedIso);
+        if (match) timeSelect.value = match.value;
+      }
+    }
+    populateTimes();
+    dateSelect.addEventListener("change", populateTimes);
+  }
+
   function openModal(lead) {
     const next = NEXT[lead.status];
     const overlay = document.getElementById("overlay");
@@ -764,9 +878,12 @@
       fields = `
         <label for="f_vehicle_info">Vehicle (year / make / model)</label>
         <input id="f_vehicle_info" value="${lead.vehicle_info ? escapeHtml(lead.vehicle_info) : ""}" required />
-        <label for="f_appointment_date">Appointment Date &amp; Time</label>
-        <input id="f_appointment_date" type="datetime-local" value="${lead.requested_appointment_date ? toDatetimeLocalValue(lead.requested_appointment_date) : ""}" required />
-        ${lead.requested_appointment_date ? `<p class="sub" style="margin-top:6px">Customer requested this time — adjust if it needs to change.</p>` : ""}
+        <label>Appointment Date &amp; Time</label>
+        <div style="display:flex;gap:10px;">
+          <select id="f_appointment_date_select" required style="flex:1;padding:9px 10px;border:1px solid var(--line);border-radius:3px;font-family:'Inter',sans-serif;font-size:14px;"></select>
+          <select id="f_appointment_time_select" required style="flex:1;padding:9px 10px;border:1px solid var(--line);border-radius:3px;font-family:'Inter',sans-serif;font-size:14px;"></select>
+        </div>
+        <p class="sub" style="margin-top:6px">Limited to business hours set in <a href="settings.html">Settings</a>.${lead.requested_appointment_date ? " Pre-filled with the customer's requested time — adjust if it needs to change." : ""}</p>
         <label for="f_advisor_notes">Notes for Parts (optional)</label>
         <textarea id="f_advisor_notes"></textarea>
         <label for="f_scheduled_by">Your Name (Service Advisor)</label>
@@ -832,6 +949,10 @@
       </div>
     `;
     overlay.style.display = "flex";
+
+    if (next === "appointment_scheduled") {
+      populateAppointmentPickers(lead);
+    }
 
     document.getElementById("cancelBtn").onclick = () => (overlay.style.display = "none");
     document.getElementById("confirmBtn").onclick = () => submitAdvance(lead, next);
@@ -979,9 +1100,9 @@
       if (!payload.assigned_by) return;
     } else if (next === "appointment_scheduled") {
       payload.vehicle_info = val("f_vehicle_info");
-      const dt = val("f_appointment_date");
-      if (!payload.vehicle_info || !dt) return;
-      payload.appointment_date = new Date(dt).toISOString();
+      const apptIso = val("f_appointment_time_select");
+      if (!payload.vehicle_info || !apptIso) return;
+      payload.appointment_date = apptIso;
       payload.advisor_notes = val("f_advisor_notes");
       payload.scheduled_by = val("f_scheduled_by");
       if (!payload.scheduled_by) return;
@@ -1104,13 +1225,6 @@
     return "$" + Number(n).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 });
   }
 
-  function toDatetimeLocalValue(iso) {
-    const d = new Date(iso);
-    if (isNaN(d)) return "";
-    const pad = (n) => String(n).padStart(2, "0");
-    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
-  }
-
   function escapeHtml(str) {
     return String(str ?? "")
       .replaceAll("&", "&amp;")
@@ -1125,6 +1239,7 @@
   });
 
   loadAll();
+  loadBusinessHours();
   pollTimer = setInterval(loadAll, 30000);
 </script>
 </body>
