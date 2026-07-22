@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Commercial Lead Board</title>
+<title>Commercial Lead Tracker</title>
 <meta name="robots" content="noindex" />
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -17,7 +17,8 @@
     --card: #ffffff;
     --line: #ccd1d6;
     --muted: #666d75;
-    --orange: #ff6a1a;
+    --red: #ff0000;
+    --red-dark: #cc0000;
 
     --c-new: #3568d4;
     --c-ready: #b8860b;
@@ -38,11 +39,21 @@
   header {
     background: var(--chrome);
     color: #fff;
-    padding: 16px 24px;
+    padding: 12px 24px;
     display: flex;
     align-items: center;
     justify-content: space-between;
-    border-bottom: 3px solid var(--orange);
+    border-bottom: 3px solid var(--red);
+  }
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+  .brand .header-logo {
+    height: 34px;
+    width: auto;
+    display: block;
   }
   header h1 {
     font-family: 'Oswald', sans-serif;
@@ -69,7 +80,7 @@
     border-radius: 3px;
     cursor: pointer;
   }
-  header button:hover { border-color: var(--orange); }
+  header button:hover { border-color: var(--red); }
   header a.header-link {
     background: transparent;
     border: 1px solid var(--chrome-line);
@@ -80,7 +91,7 @@
     padding: 6px 12px;
     border-radius: 3px;
   }
-  header a.header-link:hover { border-color: var(--orange); }
+  header a.header-link:hover { border-color: var(--red); }
 
   /* ROI strip */
   #roi {
@@ -108,7 +119,7 @@
     font-size: 21px;
     font-weight: 600;
   }
-  .stat.highlight .stat-value { color: var(--orange); }
+  .stat.highlight .stat-value { color: var(--red); }
 
   /* Sidebar + content layout */
   #layout {
@@ -142,7 +153,7 @@
   .stage-link:hover { background: rgba(255,255,255,0.05); color: #fff; }
   .stage-link.active {
     background: rgba(255,255,255,0.08);
-    border-left-color: var(--orange);
+    border-left-color: var(--red);
     color: #fff;
   }
   .stage-link .dot {
@@ -159,7 +170,7 @@
     border-radius: 10px;
     color: #fff;
   }
-  .stage-link.active .badge { background: var(--orange); }
+  .stage-link.active .badge { background: var(--red); }
   .sidebar-divider {
     height: 1px;
     background: var(--chrome-line);
@@ -323,7 +334,7 @@
     cursor: pointer;
   }
   .modal .cancel { background: #eceef0; color: var(--ink); }
-  .modal .confirm { background: var(--orange); color: #fff; }
+  .modal .confirm { background: var(--red); color: #fff; }
 
   #blocked {
     display: none;
@@ -353,7 +364,7 @@
       border-bottom: 3px solid transparent;
       border-radius: 3px;
     }
-    .stage-link.active { border-left-color: transparent; border-bottom-color: var(--orange); }
+    .stage-link.active { border-left-color: transparent; border-bottom-color: var(--red); }
     .sidebar-divider { display: none; }
   }
 </style>
@@ -367,7 +378,10 @@
 
 <div id="app" style="display:none">
   <header>
-    <h1>Commercial Lead Board</h1>
+    <div class="brand">
+      <img src="modern-logo.png" alt="Modern" class="header-logo" />
+      <h1>Commercial Lead Tracker</h1>
+    </div>
     <div class="status">
       <span id="lastUpdated">—</span>
       <a class="header-link" href="settings.html">Settings</a>
