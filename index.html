@@ -111,6 +111,27 @@
     letter-spacing: 0.06em;
     text-transform: uppercase;
   }
+  select {
+    width: 100%;
+    padding: 12px 13px;
+    border: 1px solid var(--line);
+    border-radius: 3px;
+    font-family: 'Inter', sans-serif;
+    font-size: 15px;
+    background: #fbfbfa;
+    color: var(--ink);
+  }
+  select:focus {
+    outline: 2px solid var(--orange);
+    outline-offset: 1px;
+    background: #fff;
+  }
+  .two-col {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+  .two-col select { flex: 1 1 140px; }
   .vin-hint {
     font-size: 11px;
     color: #8b9096;
@@ -238,8 +259,12 @@
         <div class="vin-result" id="vinResult"></div>
       </div>
       <div>
-        <label for="requested_appointment">Requested Appointment Date/Time</label>
-        <input id="requested_appointment" name="requested_appointment" type="datetime-local" required />
+        <label>Requested Appointment Date/Time</label>
+        <div class="two-col">
+          <select id="appt_date" required></select>
+          <select id="appt_time" required></select>
+        </div>
+        <p class="vin-hint">Commercial service hours: Mon–Fri, 7:30 AM – 5:00 PM. Same-day requests need at least 3 hours' notice so Parts can prep.</p>
       </div>
       <button type="submit" id="submitBtn">Submit</button>
       <p class="fineprint">One redemption per vehicle, per company. A service advisor will call to verify your requested appointment date/time.</p>
@@ -254,9 +279,131 @@
 
 <script>
   // Set this to your deployed Worker URL.
-  const API_URL = "https://dealership-lead-tracker-api.whitakerm56.workers.dev/api/leads";
+  const API_BASE = "https://dealership-lead-tracker-api.whitakerm56.workers.dev/api";
+  const API_URL = `${API_BASE}/leads`;
 
   const VALID_VIN_CHARS = "0123456789ABCDEFGHJKLMNPRSTUVWXYZ"; // VINs never use I, O, or Q
+
+  // Used only if the /business-hours fetch fails, so the form still works.
+  const FALLBACK_BUSINESS_HOURS = {
+    sun: { open: false, start: "07:30", end: "17:00" },
+    mon: { open: true, start: "07:30", end: "17:00" },
+    tue: { open: true, start: "07:30", end: "17:00" },
+    wed: { open: true, start: "07:30", end: "17:00" },
+    thu: { open: true, start: "07:30", end: "17:00" },
+    fri: { open: true, start: "07:30", end: "17:00" },
+    sat: { open: false, start: "07:30", end: "17:00" },
+  };
+  const FALLBACK_SLOT_MINUTES = 15;
+  const FALLBACK_LEAD_TIME_HOURS = 3;
+  const DAY_KEYS = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
+  const BUSINESS_DAYS_TO_OFFER = 10;
+
+  const dateSelect = document.getElementById("appt_date");
+  const timeSelect = document.getElementById("appt_time");
+  const availability = {}; // "YYYY-MM-DD" -> [{ value: isoString, label: "7:30 AM" }, ...]
+
+  function dayKey(d) {
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  }
+
+  function parseTimeParts(hhmm) {
+    const [hour, minute] = String(hhmm).split(":").map(Number);
+    return { hour: hour || 0, minute: minute || 0 };
+  }
+
+  function slotsForDay(dayStart, dayConfig, slotMinutes) {
+    const openTime = parseTimeParts(dayConfig.start);
+    const closeTime = parseTimeParts(dayConfig.end);
+    const slots = [];
+    const start = new Date(dayStart);
+    start.setHours(openTime.hour, openTime.minute, 0, 0);
+    const end = new Date(dayStart);
+    end.setHours(closeTime.hour, closeTime.minute, 0, 0);
+    let cursor = new Date(start);
+    while (cursor < end) {
+      slots.push(new Date(cursor));
+      cursor = new Date(cursor.getTime() + slotMinutes * 60000);
+    }
+    return slots;
+  }
+
+  function buildAvailability(businessHours, slotMinutes, leadTimeHours) {
+    const earliest = new Date(Date.now() + leadTimeHours * 60 * 60000);
+    const dayCursor = new Date();
+    dayCursor.setHours(0, 0, 0, 0);
+
+    let added = 0;
+    let safety = 0;
+    while (added < BUSINESS_DAYS_TO_OFFER && safety < 60) {
+      const dayConfig = businessHours[DAY_KEYS[dayCursor.getDay()]];
+      if (dayConfig && dayConfig.open) {
+        const daySlots = slotsForDay(dayCursor, dayConfig, slotMinutes).filter((s) => s >= earliest);
+        if (daySlots.length > 0) {
+          availability[dayKey(dayCursor)] = daySlots.map((s) => ({
+            value: s.toISOString(),
+            label: s.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }),
+          }));
+          added++;
+        }
+      }
+      dayCursor.setDate(dayCursor.getDate() + 1);
+      safety++;
+    }
+  }
+
+  function populateDateSelect() {
+    dateSelect.innerHTML = "";
+    for (const key of Object.keys(availability)) {
+      const [y, m, d] = key.split("-").map(Number);
+      const opt = document.createElement("option");
+      opt.value = key;
+      opt.textContent = new Date(y, m - 1, d).toLocaleDateString([], {
+        weekday: "short",
+        month: "short",
+        day: "numeric",
+      });
+      dateSelect.appendChild(opt);
+    }
+  }
+
+  function populateTimeSelect(key) {
+    timeSelect.innerHTML = "";
+    for (const slot of availability[key] || []) {
+      const opt = document.createElement("option");
+      opt.value = slot.value;
+      opt.textContent = slot.label;
+      timeSelect.appendChild(opt);
+    }
+  }
+
+  async function initAppointmentPicker() {
+    dateSelect.innerHTML = '<option>Loading dates…</option>';
+    timeSelect.innerHTML = '<option>Loading times…</option>';
+
+    let businessHours = FALLBACK_BUSINESS_HOURS;
+    let slotMinutes = FALLBACK_SLOT_MINUTES;
+    let leadTimeHours = FALLBACK_LEAD_TIME_HOURS;
+
+    try {
+      const res = await fetch(`${API_BASE}/business-hours`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data.business_hours) businessHours = data.business_hours;
+        if (data.slot_minutes) slotMinutes = data.slot_minutes;
+        if (data.lead_time_hours !== undefined) leadTimeHours = data.lead_time_hours;
+      }
+    } catch (err) {
+      console.error("Falling back to default business hours:", err);
+    }
+
+    buildAvailability(businessHours, slotMinutes, leadTimeHours);
+    populateDateSelect();
+    if (dateSelect.value) populateTimeSelect(dateSelect.value);
+  }
+
+  dateSelect.addEventListener("change", () => populateTimeSelect(dateSelect.value));
+  initAppointmentPicker();
 
   const form = document.getElementById("leadForm");
   const errorBox = document.getElementById("errorBox");
@@ -366,7 +513,7 @@
       return;
     }
 
-    const requestedAppointment = form.requested_appointment.value;
+    const requestedAppointment = timeSelect.value;
     if (!requestedAppointment) {
       errorBox.textContent = "Please choose a requested appointment date and time.";
       errorBox.style.display = "block";
@@ -383,7 +530,7 @@
       email: form.email.value.trim(),
       vin: vinInput.value,
       vehicle_info: vehicleDescription || null,
-      requested_appointment_date: new Date(requestedAppointment).toISOString(),
+      requested_appointment_date: requestedAppointment,
     };
 
     try {
