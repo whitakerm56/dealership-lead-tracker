@@ -12,6 +12,8 @@ Replaces the shared spreadsheet with:
 
 **Roles:** Sales Manager, Service Advisor, Parts, and Salesperson (the follow-up pool). Add people to each on `users.html`. If a role has nobody added yet, notifications for that role fall back to the single legacy email address set in the Worker's `SALES_MANAGER_EMAIL` / `SERVICE_ADVISOR_EMAIL` / `PARTS_EMAIL` variables — so nothing breaks if you haven't populated the list yet. If a role has multiple people added, everyone in that role gets the notification (whoever's free can grab it). The Salesperson role instead populates a dropdown on the "Assign Follow-Up" step, since that's a single named handoff rather than a broadcast.
 
+**VIN capture:** the public form requires a 17-character VIN and decodes it live against NHTSA's free vPIC API (no key needed) as the person types, showing the year/make/model/trim right there before they submit — or a clear warning if the VIN doesn't check out. The decoded description gets stored on the lead and shows up on the dashboard immediately, and pre-fills the vehicle field when the Service Advisor later logs the appointment.
+
 ## 1. Supabase
 
 1. Create a new Supabase project (separate from any other project you run).
@@ -103,3 +105,4 @@ Any free QR generator (e.g. `qr-code-generator.com`) pointed at your `index.html
 - **Email delivery isn't guaranteed:** if Resend fails to send, the lead's status still updates — the board itself is always the source of truth, the emails are just the "someone needs to check the board" nudge. Worth checking the Resend dashboard occasionally for bounces.
 - **Polling, not real-time:** the dashboard re-fetches every 30 seconds and on any action. If you want instant updates across screens, Supabase Realtime could be layered in later — not necessary for an MVP with this volume.
 - **Duplicate leads:** the schema doesn't currently dedupe by company/email, so the same business scanning twice creates two cards. Easy to add a check in `createLead` later if it becomes an issue.
+- **VIN validation is strict on bad VINs, lenient on a down VIN service.** If NHTSA reports the VIN itself is invalid, submission is blocked until it's corrected. If NHTSA's API is simply unreachable, submission is still allowed (with no decoded vehicle info) rather than blocking a customer because a third-party government API is briefly down.
