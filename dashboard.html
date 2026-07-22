@@ -578,8 +578,11 @@
     if (lead.vin) {
       extra += `<div class="meta">VIN ${escapeHtml(lead.vin)}</div>`;
     }
+    if (lead.requested_appointment_date) {
+      extra += `<div class="meta">Requested: ${new Date(lead.requested_appointment_date).toLocaleString([], {dateStyle:"medium", timeStyle:"short"})}</div>`;
+    }
     if (lead.appointment_date) {
-      extra += `<div class="meta">${new Date(lead.appointment_date).toLocaleString([], {dateStyle:"medium", timeStyle:"short"})}</div>`;
+      extra += `<div class="meta">Scheduled: ${new Date(lead.appointment_date).toLocaleString([], {dateStyle:"medium", timeStyle:"short"})}</div>`;
     }
     if (lead.ro_value !== null && lead.ro_value !== undefined) {
       extra += `<div class="ro">RO ${money(Number(lead.ro_value))}</div>`;
@@ -623,7 +626,8 @@
         <label for="f_vehicle_info">Vehicle (year / make / model)</label>
         <input id="f_vehicle_info" value="${lead.vehicle_info ? escapeHtml(lead.vehicle_info) : ""}" required />
         <label for="f_appointment_date">Appointment Date &amp; Time</label>
-        <input id="f_appointment_date" type="datetime-local" required />
+        <input id="f_appointment_date" type="datetime-local" value="${lead.requested_appointment_date ? toDatetimeLocalValue(lead.requested_appointment_date) : ""}" required />
+        ${lead.requested_appointment_date ? `<p class="sub" style="margin-top:6px">Customer requested this time — adjust if it needs to change.</p>` : ""}
         <label for="f_advisor_notes">Notes for Parts (optional)</label>
         <textarea id="f_advisor_notes"></textarea>
         <label for="f_scheduled_by">Your Name (Service Advisor)</label>
@@ -770,6 +774,13 @@
 
   function money(n) {
     return "$" + Number(n).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+  }
+
+  function toDatetimeLocalValue(iso) {
+    const d = new Date(iso);
+    if (isNaN(d)) return "";
+    const pad = (n) => String(n).padStart(2, "0");
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
   }
 
   function escapeHtml(str) {
