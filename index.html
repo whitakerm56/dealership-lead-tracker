@@ -468,7 +468,7 @@
 
       const result = data.Results && data.Results[0];
       if (result && result.ErrorCode === "0" && result.Make && result.ModelYear) {
-        const parts = [result.ModelYear, titleCase(result.Make), result.Model, result.Trim].filter(Boolean);
+        const parts = [result.ModelYear, titleCase(result.Make), result.Model].filter(Boolean);
         vehicleDescription = parts.join(" ");
         vinStatus = "valid";
       } else {
