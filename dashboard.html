@@ -290,7 +290,7 @@
     cursor: pointer;
     color: #fff;
   }
-  .lead-row button.log-contact {
+  .lead-row button.log-contact, .lead-row button.skip-to-stock {
     flex: 0 0 auto;
     padding: 7px 12px;
     border: 1px solid var(--line);
@@ -303,7 +303,7 @@
     cursor: pointer;
     color: var(--muted);
   }
-  .lead-row button.log-contact:hover { border-color: var(--red); color: var(--red); }
+  .lead-row button.log-contact:hover, .lead-row button.skip-to-stock:hover { border-color: var(--red); color: var(--red); }
 
   .overlay {
     display: none;
@@ -720,6 +720,10 @@
       ? `<button class="log-contact" data-id="${lead.id}">Contact Attempt</button>`
       : "";
 
+    const skipToStockBtn = lead.status === "appointment_scheduled"
+      ? `<button class="skip-to-stock" data-id="${lead.id}">Mark Parts In-Stock</button>`
+      : "";
+
     el.innerHTML = `
       <span class="col ticket" title="#${ticketNo}">#${ticketNo}</span>
       <span class="col company" title="${escapeHtml(lead.company_name)}">${escapeHtml(lead.company_name)}</span>
@@ -729,7 +733,7 @@
       <span class="col detail" title="${escapeHtml(leadVehicleText(lead))}">${escapeHtml(leadVehicleText(lead))}</span>
       <span class="col vin" title="${escapeHtml(lead.vin || "")}">${escapeHtml(lead.vin || "—")}</span>
       <span class="col detail" title="${escapeHtml(leadDetailText(lead))}">${escapeHtml(leadDetailText(lead))}</span>
-      <div class="row-actions">${roHtml}${contactBtn}${btn}</div>
+      <div class="row-actions">${roHtml}${contactBtn}${skipToStockBtn}${btn}</div>
     `;
 
     const advanceBtn = el.querySelector(".advance");
@@ -737,6 +741,9 @@
 
     const logContactBtn = el.querySelector(".log-contact");
     if (logContactBtn) logContactBtn.addEventListener("click", (e) => { e.stopPropagation(); openContactAttemptModal(lead); });
+
+    const skipStockBtn = el.querySelector(".skip-to-stock");
+    if (skipStockBtn) skipStockBtn.addEventListener("click", (e) => { e.stopPropagation(); openModal(lead, "parts_in_stock", "Mark Parts In-Stock"); });
 
     el.style.cursor = "pointer";
     el.addEventListener("click", (e) => {
@@ -877,8 +884,8 @@
     dateSelect.addEventListener("change", populateTimes);
   }
 
-  function openModal(lead) {
-    const next = NEXT[lead.status];
+  function openModal(lead, overrideNext, overrideLabel) {
+    const next = overrideNext || NEXT[lead.status];
     const overlay = document.getElementById("overlay");
     const modal = document.getElementById("modal");
     modal.classList.remove("wide");
@@ -955,7 +962,7 @@
     }
 
     modal.innerHTML = `
-      <h2>${ADVANCE_LABEL[lead.status]}</h2>
+      <h2>${overrideLabel || ADVANCE_LABEL[lead.status]}</h2>
       <p class="sub">${escapeHtml(lead.company_name)}</p>
       ${fields}
       <div class="row">
