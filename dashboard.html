@@ -283,6 +283,20 @@
     cursor: pointer;
     color: #fff;
   }
+  .lead-row button.log-contact {
+    flex: 0 0 auto;
+    padding: 7px 12px;
+    border: 1px solid var(--line);
+    border-radius: 3px;
+    background: #fff;
+    font-family: 'Inter', sans-serif;
+    font-weight: 600;
+    font-size: 12px;
+    white-space: nowrap;
+    cursor: pointer;
+    color: var(--muted);
+  }
+  .lead-row button.log-contact:hover { border-color: var(--red); color: var(--red); }
 
   .overlay {
     display: none;
@@ -528,6 +542,15 @@
     follow_up_assigned: "Mark Follow-Up Done",
   };
 
+  const CONTACT_OUTCOME_LABELS = {
+    voicemail: "Left Voicemail",
+    no_answer: "No Answer",
+    busy: "Busy",
+    wrong_number: "Wrong Number",
+    spoke_with_contact: "Spoke with Contact",
+    other: "Other",
+  };
+
   let leads = [];
   let users = [];
   let activeStatus = "all";
@@ -641,6 +664,11 @@
   }
 
   function leadDetailText(lead) {
+    if (lead.status === "ready_for_advisor" && lead.contact_attempt_count > 0) {
+      const label = CONTACT_OUTCOME_LABELS[lead.last_contact_outcome] || lead.last_contact_outcome;
+      const count = lead.contact_attempt_count;
+      return `${count} attempt${count === 1 ? "" : "s"} · Last: ${label}`;
+    }
     if (lead.followup_assignee_name) return `Follow-up: ${lead.followup_assignee_name}`;
     if (lead.appointment_date) return `Scheduled: ${formatDT(lead.appointment_date)}`;
     if (lead.requested_appointment_date) return `Requested: ${formatDT(lead.requested_appointment_date)}`;
@@ -665,6 +693,10 @@
       ? `<button class="advance" style="background:${meta.color}" data-id="${lead.id}">${ADVANCE_LABEL[lead.status]}</button>`
       : "";
 
+    const contactBtn = lead.status === "ready_for_advisor"
+      ? `<button class="log-contact" data-id="${lead.id}">Log Contact</button>`
+      : "";
+
     el.innerHTML = `
       <span class="col ticket" title="#${ticketNo}">#${ticketNo}</span>
       <span class="col company" title="${escapeHtml(lead.company_name)}">${escapeHtml(lead.company_name)}</span>
@@ -674,11 +706,15 @@
       <span class="col vin" title="${escapeHtml(lead.vin || "")}">${escapeHtml(lead.vin || "—")}</span>
       <span class="col detail" title="${escapeHtml(leadDetailText(lead))}">${escapeHtml(leadDetailText(lead))}</span>
       ${roHtml}
+      ${contactBtn}
       ${btn}
     `;
 
     const advanceBtn = el.querySelector(".advance");
     if (advanceBtn) advanceBtn.addEventListener("click", (e) => { e.stopPropagation(); openModal(lead); });
+
+    const logContactBtn = el.querySelector(".log-contact");
+    if (logContactBtn) logContactBtn.addEventListener("click", (e) => { e.stopPropagation(); openContactAttemptModal(lead); });
 
     el.style.cursor = "pointer";
     el.addEventListener("click", (e) => {
@@ -817,6 +853,8 @@
         <div class="field"><label>RO Value</label><div class="value">${lead.ro_value != null ? money(Number(lead.ro_value)) : "—"}</div></div>
         <div class="field"><label>Follow-Up Assigned To</label><div class="value">${lead.followup_assignee_name ? `${escapeHtml(lead.followup_assignee_name)} (${escapeHtml(lead.followup_assignee_email || "")})` : "—"}</div></div>
       </div>
+      <div class="log-heading">Contact Attempts</div>
+      <div class="log-list" id="attemptsList"><div class="log-empty">Loading…</div></div>
       <div class="log-heading">Transaction Log</div>
       <div class="log-list" id="logList"><div class="log-empty">Loading…</div></div>
       <div class="row">
@@ -827,11 +865,41 @@
     document.getElementById("closeDetailsBtn").onclick = () => (overlay.style.display = "none");
 
     try {
-      const res = await fetch(`${API_URL}/leads/${lead.id}/history`);
-      const history = res.ok ? await res.json() : [];
+      const [historyRes, attemptsRes] = await Promise.all([
+        fetch(`${API_URL}/leads/${lead.id}/history`),
+        fetch(`${API_URL}/leads/${lead.id}/contact-attempts`),
+      ]);
+      const history = historyRes.ok ? await historyRes.json() : [];
+      const attempts = attemptsRes.ok ? await attemptsRes.json() : [];
       renderLog(history, lead);
+      renderAttempts(attempts);
     } catch (err) {
       document.getElementById("logList").innerHTML = `<div class="log-empty">Couldn't load the log.</div>`;
+      document.getElementById("attemptsList").innerHTML = `<div class="log-empty">Couldn't load contact attempts.</div>`;
+    }
+  }
+
+  function renderAttempts(attempts) {
+    const list = document.getElementById("attemptsList");
+    if (!list) return; // modal was closed before the fetch finished
+    if (attempts.length === 0) {
+      list.innerHTML = `<div class="log-empty">No contact attempts logged yet.</div>`;
+      return;
+    }
+    list.innerHTML = "";
+    for (const attempt of attempts) {
+      const label = CONTACT_OUTCOME_LABELS[attempt.outcome] || attempt.outcome;
+      const el = document.createElement("div");
+      el.className = "log-entry";
+      el.innerHTML = `
+        <span class="dot" style="background:var(--c-ready)"></span>
+        <div>
+          <div class="log-title">${escapeHtml(label)}</div>
+          <div class="log-time">${formatDT(attempt.attempted_at)}${attempt.attempted_by ? ` &middot; ${escapeHtml(attempt.attempted_by)}` : ""}</div>
+          ${attempt.notes ? `<div class="log-detail">${escapeHtml(attempt.notes)}</div>` : ""}
+        </div>
+      `;
+      list.appendChild(el);
     }
   }
 
@@ -967,6 +1035,64 @@
       alert("Couldn't save that update. Please try again.");
       confirmBtn.disabled = false;
       confirmBtn.textContent = "Confirm";
+    }
+  }
+
+  function openContactAttemptModal(lead) {
+    const overlay = document.getElementById("overlay");
+    const modal = document.getElementById("modal");
+    modal.classList.remove("wide");
+
+    const outcomeOptions = Object.entries(CONTACT_OUTCOME_LABELS)
+      .map(([value, label]) => `<option value="${value}">${label}</option>`)
+      .join("");
+
+    modal.innerHTML = `
+      <h2>Log Contact Attempt</h2>
+      <p class="sub">${escapeHtml(lead.company_name)}</p>
+      <label for="f_outcome">Outcome</label>
+      <select id="f_outcome" required style="width:100%;padding:9px 10px;border:1px solid var(--line);border-radius:3px;font-family:'Inter',sans-serif;font-size:14px;">
+        <option value="">Select…</option>
+        ${outcomeOptions}
+      </select>
+      <label for="f_contact_notes">Notes (optional)</label>
+      <textarea id="f_contact_notes" placeholder="e.g. left voicemail asking to call back"></textarea>
+      <label for="f_contact_by">Your Name</label>
+      ${nameField("f_contact_by", "service_advisor")}
+      <div class="row">
+        <button class="cancel" id="cancelContactBtn">Cancel</button>
+        <button class="confirm" id="saveContactBtn">Save</button>
+      </div>
+    `;
+    overlay.style.display = "flex";
+
+    document.getElementById("cancelContactBtn").onclick = () => (overlay.style.display = "none");
+    document.getElementById("saveContactBtn").onclick = () => submitContactAttempt(lead);
+  }
+
+  async function submitContactAttempt(lead) {
+    const outcome = val("f_outcome");
+    const attempted_by = val("f_contact_by");
+    if (!outcome || !attempted_by) return;
+
+    const notes = val("f_contact_notes");
+    const saveBtn = document.getElementById("saveContactBtn");
+    saveBtn.disabled = true;
+    saveBtn.textContent = "Saving…";
+
+    try {
+      const res = await fetch(`${API_URL}/leads/${lead.id}/contact-attempts`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ outcome, notes, attempted_by }),
+      });
+      if (!res.ok) throw new Error("Save failed");
+      document.getElementById("overlay").style.display = "none";
+      await loadAll();
+    } catch (err) {
+      alert("Couldn't save that contact attempt. Please try again.");
+      saveBtn.disabled = false;
+      saveBtn.textContent = "Save";
     }
   }
 
