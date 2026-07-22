@@ -572,11 +572,14 @@
     const ticketNo = String(lead.ticket_no ?? "").padStart(4, "0");
 
     let extra = "";
-    if (["appointment_scheduled", "parts_ordered", "service_complete", "follow_up_assigned", "follow_up_complete"].includes(lead.status)) {
-      extra += `<div class="meta">${lead.vehicle_info ? escapeHtml(lead.vehicle_info) : "Vehicle: —"}</div>`;
-      if (lead.appointment_date) {
-        extra += `<div class="meta">${new Date(lead.appointment_date).toLocaleString([], {dateStyle:"medium", timeStyle:"short"})}</div>`;
-      }
+    if (lead.vehicle_info) {
+      extra += `<div class="meta">${escapeHtml(lead.vehicle_info)}</div>`;
+    }
+    if (lead.vin) {
+      extra += `<div class="meta">VIN ${escapeHtml(lead.vin)}</div>`;
+    }
+    if (lead.appointment_date) {
+      extra += `<div class="meta">${new Date(lead.appointment_date).toLocaleString([], {dateStyle:"medium", timeStyle:"short"})}</div>`;
     }
     if (lead.ro_value !== null && lead.ro_value !== undefined) {
       extra += `<div class="ro">RO ${money(Number(lead.ro_value))}</div>`;
@@ -618,7 +621,7 @@
     } else if (next === "appointment_scheduled") {
       fields = `
         <label for="f_vehicle_info">Vehicle (year / make / model)</label>
-        <input id="f_vehicle_info" required />
+        <input id="f_vehicle_info" value="${lead.vehicle_info ? escapeHtml(lead.vehicle_info) : ""}" required />
         <label for="f_appointment_date">Appointment Date &amp; Time</label>
         <input id="f_appointment_date" type="datetime-local" required />
         <label for="f_advisor_notes">Notes for Parts (optional)</label>
