@@ -689,6 +689,25 @@
     return el;
   }
 
+  // Renders a dropdown of user names for the given role (or everyone, if
+  // role is null). Falls back to a plain text input if nobody matches yet,
+  // same pattern as the follow-up assignment dropdown.
+  function nameField(fieldId, role, preselect) {
+    const candidates = role ? users.filter((u) => u.role === role) : users;
+    if (candidates.length === 0) {
+      return `<input id="${fieldId}" required />`;
+    }
+    const options = candidates
+      .map((u) => `<option value="${escapeHtml(u.name)}" ${preselect && u.name === preselect ? "selected" : ""}>${escapeHtml(u.name)}</option>`)
+      .join("");
+    return `
+      <select id="${fieldId}" required style="width:100%;padding:9px 10px;border:1px solid var(--line);border-radius:3px;font-family:'Inter',sans-serif;font-size:14px;">
+        <option value="">Select…</option>
+        ${options}
+      </select>
+    `;
+  }
+
   function openModal(lead) {
     const next = NEXT[lead.status];
     const overlay = document.getElementById("overlay");
@@ -699,7 +718,7 @@
     if (next === "ready_for_advisor") {
       fields = `
         <label for="f_assigned_by">Your Name (Sales Manager)</label>
-        <input id="f_assigned_by" required />
+        ${nameField("f_assigned_by", "sales_manager")}
       `;
     } else if (next === "appointment_scheduled") {
       fields = `
@@ -711,28 +730,28 @@
         <label for="f_advisor_notes">Notes for Parts (optional)</label>
         <textarea id="f_advisor_notes"></textarea>
         <label for="f_scheduled_by">Your Name (Service Advisor)</label>
-        <input id="f_scheduled_by" required />
+        ${nameField("f_scheduled_by", "service_advisor")}
       `;
     } else if (next === "parts_ordered") {
       fields = `
         <label for="f_parts_notes">Parts Notes (optional)</label>
         <textarea id="f_parts_notes"></textarea>
         <label for="f_parts_by">Your Name (Parts)</label>
-        <input id="f_parts_by" required />
+        ${nameField("f_parts_by", "parts")}
       `;
     } else if (next === "parts_in_stock") {
       fields = `
         <label for="f_parts_in_stock_notes">Notes (optional)</label>
         <textarea id="f_parts_in_stock_notes" placeholder="e.g. all parts received, or partial with ETA"></textarea>
         <label for="f_parts_in_stock_by">Your Name (Parts)</label>
-        <input id="f_parts_in_stock_by" required />
+        ${nameField("f_parts_in_stock_by", "parts")}
       `;
     } else if (next === "service_complete") {
       fields = `
         <label for="f_ro_value">RO Value ($)</label>
         <input id="f_ro_value" type="number" step="0.01" min="0" required />
         <label for="f_closed_by">Your Name</label>
-        <input id="f_closed_by" required />
+        ${nameField("f_closed_by", null)}
       `;
     } else if (next === "follow_up_assigned") {
       const salespeople = users.filter((u) => u.role === "salesperson");
@@ -759,7 +778,7 @@
         <label for="f_followup_notes">Outcome Notes (optional)</label>
         <textarea id="f_followup_notes"></textarea>
         <label for="f_followup_completed_by">Your Name</label>
-        <input id="f_followup_completed_by" required />
+        ${nameField("f_followup_completed_by", null, lead.followup_assignee_name)}
       `;
     }
 
