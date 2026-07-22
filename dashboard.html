@@ -97,7 +97,6 @@
   /* Sidebar + content layout */
   #layout {
     display: flex;
-    align-items: flex-start;
     min-height: calc(100vh - 140px);
   }
   #sidebar {
@@ -178,61 +177,86 @@
   .section-body {
     background: #dfe2e6;
     border-radius: 0 0 3px 3px;
-    padding: 12px;
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-    gap: 12px;
+    padding: 6px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
   }
   .section-empty {
-    grid-column: 1 / -1;
     font-size: 12px;
     color: #8a9097;
     text-align: center;
     padding: 20px 8px;
   }
 
-  .tag {
-    background: var(--card);
-    border: 1px dashed var(--line);
-    border-radius: 3px;
-    position: relative;
-    padding: 16px 12px 12px;
-  }
-  .tag::before {
-    content: "";
-    position: absolute;
-    top: -6px; left: 50%;
-    transform: translateX(-50%);
-    width: 12px; height: 12px;
-    background: var(--paper);
-    border: 1px dashed var(--line);
-    border-radius: 50%;
-  }
-  .tag .ticket {
-    position: absolute;
-    top: 8px; right: 10px;
+  .row-header {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 4px 12px;
     font-family: 'JetBrains Mono', monospace;
-    font-size: 10.5px;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #8a9097;
+  }
+
+  .lead-row {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 3px;
+    padding: 9px 12px;
+  }
+  .lead-row .col {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .lead-row .ticket, .row-header .ticket {
+    flex: 0 0 46px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
     color: #9aa0a6;
   }
-  .tag h3 {
+  .lead-row .company, .row-header .company {
+    flex: 1 1 170px;
+    min-width: 90px;
     font-family: 'Oswald', sans-serif;
-    font-size: 15px;
-    margin: 4px 24px 2px 0;
-    line-height: 1.2;
+    font-size: 14px;
   }
-  .tag .contact { font-size: 12.5px; color: #4b5157; margin-bottom: 2px; }
-  .tag .contact a { color: inherit; }
-  .tag .meta {
+  .lead-row .contact, .row-header .contact {
+    flex: 1 1 150px;
+    min-width: 80px;
+  }
+  .lead-row .contact { font-size: 12.5px; color: #4b5157; }
+  .lead-row .contact a { color: inherit; }
+  .lead-row .email, .row-header .email {
+    flex: 1 1 170px;
+    min-width: 80px;
+    font-size: 12px;
+    color: var(--muted);
+  }
+  .lead-row .detail, .row-header .detail {
+    flex: 1 1 190px;
+    min-width: 90px;
     font-family: 'JetBrains Mono', monospace;
     font-size: 11px;
     color: var(--muted);
-    margin-top: 6px;
-    line-height: 1.5;
   }
-  .tag .ro {
-    display: inline-block;
-    margin-top: 6px;
+  .row-header .ticket, .row-header .company, .row-header .contact,
+  .row-header .email, .row-header .detail {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    font-weight: 400;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #8a9097;
+  }
+  .lead-row .ro {
+    flex: 0 0 auto;
     font-family: 'JetBrains Mono', monospace;
     font-size: 12px;
     font-weight: 600;
@@ -241,15 +265,15 @@
     padding: 2px 7px;
     border-radius: 3px;
   }
-  .tag button.advance {
-    margin-top: 10px;
-    width: 100%;
-    padding: 8px 10px;
+  .lead-row button.advance {
+    flex: 0 0 auto;
+    padding: 7px 12px;
     border: none;
     border-radius: 3px;
     font-family: 'Inter', sans-serif;
     font-weight: 600;
-    font-size: 12.5px;
+    font-size: 12px;
+    white-space: nowrap;
     cursor: pointer;
     color: #fff;
   }
@@ -527,47 +551,59 @@
         body.innerHTML = `<div class="section-empty">No leads here</div>`;
         continue;
       }
+      body.innerHTML = `
+        <div class="row-header">
+          <span class="ticket">#</span>
+          <span class="company">Company</span>
+          <span class="contact">Contact</span>
+          <span class="email">Email</span>
+          <span class="detail">Vehicle</span>
+          <span class="detail">Details</span>
+        </div>
+      `;
       for (const lead of items) body.appendChild(renderCard(lead));
     }
   }
 
+  function leadVehicleText(lead) {
+    if (lead.vehicle_info) return lead.vehicle_info;
+    if (lead.vin) return `VIN ${lead.vin}`;
+    return "—";
+  }
+
+  function leadDetailText(lead) {
+    if (lead.followup_assignee_name) return `Follow-up: ${lead.followup_assignee_name}`;
+    if (lead.appointment_date) return `Scheduled: ${formatDT(lead.appointment_date)}`;
+    if (lead.requested_appointment_date) return `Requested: ${formatDT(lead.requested_appointment_date)}`;
+    return "—";
+  }
+
+  function formatDT(iso) {
+    return new Date(iso).toLocaleString([], { dateStyle: "medium", timeStyle: "short" });
+  }
+
   function renderCard(lead) {
     const el = document.createElement("div");
-    el.className = "tag";
+    el.className = "lead-row";
     const meta = STATUS_META[lead.status];
     const ticketNo = String(lead.ticket_no ?? "").padStart(4, "0");
 
-    let extra = "";
-    if (lead.vehicle_info) {
-      extra += `<div class="meta">${escapeHtml(lead.vehicle_info)}</div>`;
-    }
-    if (lead.vin) {
-      extra += `<div class="meta">VIN ${escapeHtml(lead.vin)}</div>`;
-    }
-    if (lead.requested_appointment_date) {
-      extra += `<div class="meta">Requested: ${new Date(lead.requested_appointment_date).toLocaleString([], {dateStyle:"medium", timeStyle:"short"})}</div>`;
-    }
-    if (lead.appointment_date) {
-      extra += `<div class="meta">Scheduled: ${new Date(lead.appointment_date).toLocaleString([], {dateStyle:"medium", timeStyle:"short"})}</div>`;
-    }
-    if (lead.ro_value !== null && lead.ro_value !== undefined) {
-      extra += `<div class="ro">RO ${money(Number(lead.ro_value))}</div>`;
-    }
-    if (lead.followup_assignee_name) {
-      extra += `<div class="meta">Follow-up: ${escapeHtml(lead.followup_assignee_name)}</div>`;
-    }
+    const roHtml = lead.ro_value !== null && lead.ro_value !== undefined
+      ? `<span class="ro">RO ${money(Number(lead.ro_value))}</span>`
+      : "";
 
-    let btn = "";
-    if (NEXT[lead.status]) {
-      btn = `<button class="advance" style="background:${meta.color}" data-id="${lead.id}">${ADVANCE_LABEL[lead.status]}</button>`;
-    }
+    const btn = NEXT[lead.status]
+      ? `<button class="advance" style="background:${meta.color}" data-id="${lead.id}">${ADVANCE_LABEL[lead.status]}</button>`
+      : "";
 
     el.innerHTML = `
-      <span class="ticket">#${ticketNo}</span>
-      <h3>${escapeHtml(lead.company_name)}</h3>
-      <div class="contact">${escapeHtml(lead.contact_name)} &middot; <a href="tel:${escapeHtml(lead.phone)}">${escapeHtml(lead.phone)}</a></div>
-      <div class="contact">${escapeHtml(lead.email)}</div>
-      ${extra}
+      <span class="col ticket" title="#${ticketNo}">#${ticketNo}</span>
+      <span class="col company" title="${escapeHtml(lead.company_name)}">${escapeHtml(lead.company_name)}</span>
+      <span class="col contact" title="${escapeHtml(lead.contact_name)} ${escapeHtml(lead.phone)}">${escapeHtml(lead.contact_name)} &middot; <a href="tel:${escapeHtml(lead.phone)}">${escapeHtml(lead.phone)}</a></span>
+      <span class="col email" title="${escapeHtml(lead.email)}">${escapeHtml(lead.email)}</span>
+      <span class="col detail" title="${escapeHtml(leadVehicleText(lead))}">${escapeHtml(leadVehicleText(lead))}</span>
+      <span class="col detail" title="${escapeHtml(leadDetailText(lead))}">${escapeHtml(leadDetailText(lead))}</span>
+      ${roHtml}
       ${btn}
     `;
 
